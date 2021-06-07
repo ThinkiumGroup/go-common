@@ -25,7 +25,9 @@ import (
 
 const MaxTxsInLog = 50 // up to 50 transaction information can be displayed in the log
 
-var rootLog *logrus.Logger
+var (
+	rootLog *logrus.Logger
+)
 
 type EmptyWriter struct{}
 
@@ -55,14 +57,6 @@ func InitLog(path string, nid []byte) {
 		Hooks:     make(logrus.LevelHooks),
 		Level:     logrus.DebugLevel,
 	}
-	// rootLog.AddHook(NewHook(
-	// 	writer,
-	// 	formatter,
-	// 	// &logrus.TextFormatter{
-	// 	// 	FullTimestamp:   true,
-	// 	// 	TimestampFormat: time.StampMilli,
-	// 	// },
-	// ))
 	rootLog.AddHook(NewFileAndConsoleHook(formatter, writer, os.Stdout,
 		logrus.InfoLevel, logrus.WarnLevel, logrus.ErrorLevel))
 }
@@ -72,11 +66,6 @@ func init() {
 		FullTimestamp:   true,
 		TimestampFormat: time.StampMilli,
 	}
-	//
-	// logrus.SetFormatter(formatter)
-	// logrus.SetOutput(os.Stdout)
-	//
-	// logrus.SetLevel(logrus.DebugLevel)
 
 	rootLog = &logrus.Logger{
 		Out:       os.Stdout,

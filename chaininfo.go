@@ -455,6 +455,23 @@ func (id ChainID) Bytes() []byte {
 	return buf
 }
 
+func (id ChainID) Compare(o ChainID) int {
+	if id == o {
+		return 0
+	}
+	if id.IsNil() {
+		return -1
+	}
+	if o.IsNil() {
+		return 1
+	}
+	if id < o {
+		return -1
+	} else {
+		return 1
+	}
+}
+
 func BytesToChainID(bs []byte) ChainID {
 	buf := bs
 	if len(bs) > ChainBytesLength {
