@@ -70,7 +70,7 @@ func init() {
 	// Initialize the hash values of Nil according to RealCipher
 	NilHashSlice = SystemHash256(nil)
 	NilHash = BytesToHash(NilHashSlice)
-	log.Debugf("NilHash set to: %s", NilHash)
+	// log.Debugf("NilHash set to: %s", NilHash)
 }
 
 // type NodeType string
