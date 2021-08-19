@@ -22,7 +22,6 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/ThinkiumGroup/go-common/log"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -70,7 +69,6 @@ func init() {
 	// Initialize the hash values of Nil according to RealCipher
 	NilHashSlice = SystemHash256(nil)
 	NilHash = BytesToHash(NilHashSlice)
-	// log.Debugf("NilHash set to: %s", NilHash)
 }
 
 // type NodeType string
