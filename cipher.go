@@ -17,13 +17,13 @@ package common
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/ThinkiumGroup/go-common/rlp"
-	"golang.org/x/crypto/sha3"
 	"hash"
 	"sync"
 
 	"github.com/ThinkiumGroup/go-cipher"
 	"github.com/ThinkiumGroup/go-common/log"
+	"github.com/ThinkiumGroup/go-common/rlp"
+	"github.com/ThinkiumGroup/go-ecrypto/sha3"
 )
 
 var (
@@ -125,7 +125,7 @@ type KeccakState interface {
 	Read([]byte) (int, error)
 }
 
-// rlpHash encodes x and hashes the encoded bytes.
+// RlpHash encodes x and hashes the encoded bytes.
 func RlpHash(x interface{}) (h Hash) {
 	sha := hasherPool.Get().(KeccakState)
 	defer hasherPool.Put(sha)
@@ -135,7 +135,7 @@ func RlpHash(x interface{}) (h Hash) {
 	return h
 }
 
-// prefixedRlpHash writes the prefix into the hasher before rlp-encoding x.
+// PrefixedRlpHash writes the prefix into the hasher before rlp-encoding x.
 // It's used for typed transactions.
 func PrefixedRlpHash(prefix byte, x interface{}) (h Hash) {
 	sha := hasherPool.Get().(KeccakState)

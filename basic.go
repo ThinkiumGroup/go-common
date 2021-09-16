@@ -40,7 +40,6 @@ var (
 	TypeOfAddress = reflect.TypeOf((*Address)(nil)).Elem()
 	TypeOfHash    = reflect.TypeOf((*Hash)(nil)).Elem()
 	EmptyNodeID   = NodeID{}
-	addressT      = reflect.TypeOf(Address{})
 	SystemNodeID  NodeID // NodeID of current node, which is initialized from the configuration file when the system starts
 
 	NodeIDMap     = make(map[NodeID]int)
