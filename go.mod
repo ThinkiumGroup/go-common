@@ -1,6 +1,6 @@
 module github.com/ThinkiumGroup/go-common
 
-go 1.12
+go 1.14
 
 require (
 	github.com/ThinkiumGroup/go-cipher v1.0.202
