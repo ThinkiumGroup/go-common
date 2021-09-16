@@ -17,6 +17,10 @@ package common
 import (
 	"encoding/hex"
 	"errors"
+	"github.com/ThinkiumGroup/go-common/rlp"
+	"golang.org/x/crypto/sha3"
+	"hash"
+	"sync"
 
 	"github.com/ThinkiumGroup/go-cipher"
 	"github.com/ThinkiumGroup/go-common/log"
@@ -106,4 +110,39 @@ func HexToPrivKey(h string) (cipher.ECCPrivateKey, error) {
 		return nil, err
 	}
 	return RealCipher.BytesToPriv(bs)
+}
+
+// hasherPool holds LegacyKeccak256 hashers for rlpHash.
+var hasherPool = sync.Pool{
+	New: func() interface{} { return sha3.NewLegacyKeccak256() },
+}
+
+// KeccakState wraps sha3.state. In addition to the usual hash methods, it also supports
+// Read to get a variable amount of data from the hash state. Read is faster than Sum
+// because it doesn't copy the internal state, but also modifies the internal state.
+type KeccakState interface {
+	hash.Hash
+	Read([]byte) (int, error)
+}
+
+// rlpHash encodes x and hashes the encoded bytes.
+func RlpHash(x interface{}) (h Hash) {
+	sha := hasherPool.Get().(KeccakState)
+	defer hasherPool.Put(sha)
+	sha.Reset()
+	rlp.Encode(sha, x)
+	sha.Read(h[:])
+	return h
+}
+
+// prefixedRlpHash writes the prefix into the hasher before rlp-encoding x.
+// It's used for typed transactions.
+func PrefixedRlpHash(prefix byte, x interface{}) (h Hash) {
+	sha := hasherPool.Get().(KeccakState)
+	defer hasherPool.Put(sha)
+	sha.Reset()
+	sha.Write([]byte{prefix})
+	rlp.Encode(sha, x)
+	sha.Read(h[:])
+	return h
 }

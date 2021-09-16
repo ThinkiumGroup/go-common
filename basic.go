@@ -40,8 +40,8 @@ var (
 	TypeOfAddress = reflect.TypeOf((*Address)(nil)).Elem()
 	TypeOfHash    = reflect.TypeOf((*Hash)(nil)).Elem()
 	EmptyNodeID   = NodeID{}
-
-	SystemNodeID NodeID // NodeID of current node, which is initialized from the configuration file when the system starts
+	addressT      = reflect.TypeOf(Address{})
+	SystemNodeID  NodeID // NodeID of current node, which is initialized from the configuration file when the system starts
 
 	NodeIDMap     = make(map[NodeID]int)
 	TxCount       uint64
@@ -990,10 +990,10 @@ func (a *Address) UnmarshalText(input []byte) error {
 }
 
 // UnmarshalJSON parses a hash in hex syntax.
-// func (a *Address) UnmarshalJSON(input []byte) error {
-// 	return hexutil.UnmarshalFixedJSON(TypeOfAddress, input, a[:])
-// }
-//
+func (a *Address) UnmarshalJSON(input []byte) error {
+	return hexutil.UnmarshalFixedJSON(TypeOfAddress, input, a[:])
+}
+
 // func NewAddress(b []byte) Address {
 // 	var r Address
 // 	copy(r[:], b)
