@@ -21,6 +21,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/ThinkiumGroup/go-common/rlp"
 	"io"
 	"math"
 	"math/big"
@@ -33,7 +34,6 @@ import (
 
 	"github.com/ThinkiumGroup/go-common/hexutil"
 	"github.com/ThinkiumGroup/go-common/log"
-	"github.com/stephenfire/go-rtl"
 )
 
 var (
@@ -1193,10 +1193,12 @@ func HashLess(a, b Hash) bool {
 
 // CreateAddress creates an ethereum address given the bytes and the nonce
 func CreateAddress(b Address, nonce uint64) Address {
-	buf := new(bytes.Buffer)
-	buf.Write(b[:])
-	rtl.ToBinaryBuffer(nonce, buf)
-	h, _ := Hash256s(buf.Bytes())
+	//buf := new(bytes.Buffer)
+	//buf.Write(b[:])
+	//rtl.ToBinaryBuffer(nonce, buf)
+	//return BytesToAddress(h[12:])
+	data, _ := rlp.EncodeToBytes([]interface{}{b, nonce})
+	h, _ := Hash256s(data)
 	return BytesToAddress(h[12:])
 }
 

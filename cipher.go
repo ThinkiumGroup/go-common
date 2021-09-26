@@ -23,7 +23,6 @@ import (
 	"github.com/ThinkiumGroup/go-cipher"
 	"github.com/ThinkiumGroup/go-common/log"
 	"github.com/ThinkiumGroup/go-common/rlp"
-	"github.com/ThinkiumGroup/go-ecrypto/sha3"
 )
 
 var (
@@ -77,28 +76,25 @@ func VerifyMsg(v interface{}, pub, sig []byte) bool {
 		log.Errorf("verify msg %v", err)
 		return false
 	}
-	if pub == nil {
-		// pub = RealCipher.PubFromSignature(mh, sig)
-		log.Error("missing public key")
-		return false
-	}
+	//if pub == nil {
+	//	// pub = RealCipher.PubFromSignature(mh, sig)
+	//	log.Error("missing public key")
+	//	return false
+	//}
 	if pub == nil {
 		return false
 	}
 	return RealCipher.Verify(pub, mh, sig)
 }
 
-// verify msg hash signature
+// VerifyHash verify msg hash signature
 func VerifyHash(hash, pub, sig []byte) bool {
-	if sig == nil {
+	if sig == nil || hash == nil {
 		return false
 	}
 	if pub == nil {
 		// pub = RealCipher.PubFromSignature(hash, sig)
 		log.Error("missing public key")
-		return false
-	}
-	if pub == nil {
 		return false
 	}
 	return RealCipher.Verify(pub, hash, sig)
@@ -114,7 +110,7 @@ func HexToPrivKey(h string) (cipher.ECCPrivateKey, error) {
 
 // hasherPool holds LegacyKeccak256 hashers for rlpHash.
 var hasherPool = sync.Pool{
-	New: func() interface{} { return sha3.NewLegacyKeccak256() },
+	New: func() interface{} { return RealCipher.Hasher() },
 }
 
 // KeccakState wraps sha3.state. In addition to the usual hash methods, it also supports

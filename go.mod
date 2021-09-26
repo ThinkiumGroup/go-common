@@ -4,7 +4,6 @@ go 1.14
 
 require (
 	github.com/ThinkiumGroup/go-cipher v1.0.202
-	github.com/ThinkiumGroup/go-ecrypto v1.2.3
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
