@@ -21,7 +21,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/ThinkiumGroup/go-common/rlp"
 	"io"
 	"math"
 	"math/big"
@@ -34,6 +33,7 @@ import (
 
 	"github.com/ThinkiumGroup/go-common/hexutil"
 	"github.com/ThinkiumGroup/go-common/log"
+	"github.com/ThinkiumGroup/go-common/rlp"
 )
 
 var (
