@@ -40,6 +40,7 @@ var (
 	TypeOfAddress = reflect.TypeOf((*Address)(nil)).Elem()
 	TypeOfHash    = reflect.TypeOf((*Hash)(nil)).Elem()
 	EmptyNodeID   = NodeID{}
+	EmptyAddress  = Address{}
 	SystemNodeID  NodeID // NodeID of current node, which is initialized from the configuration file when the system starts
 
 	NodeIDMap     = make(map[NodeID]int)
@@ -326,6 +327,12 @@ func BytesToNodeID(b []byte) NodeID {
 	return a
 }
 
+func BytesToNodeIDP(b []byte) *NodeID {
+	var nid NodeID
+	nid.SetBytes(b)
+	return &nid
+}
+
 func ParseBytesToNodeIds(s []byte) ([]NodeID, error) {
 	if len(s)%NodeIDBytes != 0 {
 		return nil, errors.New(fmt.Sprintf("input nodeids length illegal (%d)", len(s)))
@@ -430,38 +437,6 @@ func (nid NodeID) Hash() Hash {
 	// return EncodeHash(nid)
 	return Hash256(nid[:])
 }
-
-//
-// func NodeIDFromPubSlice(pub []byte) (NodeID, error) {
-// 	var id NodeID
-// 	if len(pub)-1 != len(id) {
-// 		return NodeID{}, fmt.Errorf("need %d bit pubkey, got %d bits", (len(id)+1)*8, len(pub))
-// 	}
-// 	copy(id[:], pub[1:])
-// 	return id, nil
-// }
-//
-// func NodeIDFromPubkey(pubkey *ecdsa.PublicKey) *NodeID {
-// 	pbytes := elliptic.Marshal(pubkey.Curve, pubkey.X, pubkey.Y)
-// 	nid, err := NodeIDFromPubSlice(pbytes)
-// 	if err != nil {
-// 		return nil
-// 	}
-// 	return &nid
-// }
-//
-// // Pubkey returns the public key represented by the node ID.
-// // It returns an error if the ID is not a point on the curve.
-// func (nid NodeID) PubKey() (*ecdsa.PublicKey, error) {
-// 	p := &ecdsa.PublicKey{Curve: secp256k1.S256(), X: new(big.Int), Y: new(big.Int)}
-// 	half := len(nid) / 2
-// 	p.X.SetBytes(nid[:half])
-// 	p.Y.SetBytes(nid[half:])
-// 	if !p.Curve.IsOnCurve(p.X, p.Y) {
-// 		return nil, errors.New("id is invalid secp256k1 curve point")
-// 	}
-// 	return p, nil
-// }
 
 func StringsToNodeIDs(strings []string) ([]NodeID, error) {
 	if strings == nil {
@@ -700,19 +675,25 @@ func (ns *NodeIDSet) GetNodeIDs(chainid ChainID) NodeIDs {
 }
 
 func (e EraNum) IsNil() bool {
-	return uint64(e) == math.MaxUint64
+	return e == NilEra
 }
 
-func (e EraNum) Equals(era *EraNum) bool {
-	if era == nil {
-		return e.IsNil()
+func (e *EraNum) Equals(o *EraNum) bool {
+	if e == o {
+		return true
 	}
-	return e == *era
+	if e == nil || o == nil {
+		return false
+	}
+	return *e == *o
 }
 
 func (e *EraNum) String() string {
 	if e == nil {
 		return ""
+	}
+	if e.IsNil() {
+		return "<nil>"
 	}
 	return strconv.FormatUint(uint64(*e), 10)
 }
@@ -763,11 +744,24 @@ func (bn BlockNum) IsLastOfEpoch() bool {
 }
 
 func (bn BlockNum) String() string {
+	if bn.IsNil() {
+		return "<nil>"
+	}
 	return strconv.Itoa(int(bn))
 }
 
 func (h Height) IsNil() bool {
 	return h == NilHeight
+}
+
+func (h *Height) Equal(o *Height) bool {
+	if h == o {
+		return true
+	}
+	if h == nil || o == nil {
+		return false
+	}
+	return *h == *o
 }
 
 func (h Height) Compare(o Height) int {
@@ -847,12 +841,14 @@ func ToHeight(epoch EpochNum, bn BlockNum) Height {
 	return Height(uint64(epoch)*BlocksInEpoch + uint64(bn))
 }
 
-func (h Height) String() string {
-	// return strconv.Itoa(int(h))
+func (h *Height) String() string {
+	if h == nil {
+		return ""
+	}
 	if h.IsNil() {
 		return "<nil>"
 	}
-	return fmt.Sprintf("%d", h)
+	return fmt.Sprintf("%d", *h)
 }
 
 func (h Height) HashValue() ([]byte, error) {
@@ -927,8 +923,32 @@ func (a Address) IsNoGas() bool {
 	return exist
 }
 
-func (a Address) Clone() Address {
-	return a
+func (a *Address) Clone() *Address {
+	if a == nil {
+		return nil
+	}
+	b := *a
+	return &b
+}
+
+func (a *Address) Slice() []byte {
+	if a == nil {
+		return nil
+	}
+	return a[:]
+}
+
+func (a *Address) Cmp(o *Address) int {
+	if a == o {
+		return 0
+	}
+	if a == nil {
+		return -1
+	}
+	if o == nil {
+		return 1
+	}
+	return bytes.Compare(a.Slice(), o.Slice())
 }
 
 // Bytes gets the string representation of the underlying address.

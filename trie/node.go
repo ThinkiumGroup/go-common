@@ -796,13 +796,12 @@ func (n *node) String() string {
 func (n *node) print() string {
 	buf := new(bytes.Buffer)
 	buf.WriteString("{")
-	if n.hash != nil {
-		buf.WriteString("hash=")
-		buf.WriteString(hex.EncodeToString(n.hash))
-		buf.WriteString(", ")
-	}
 	buf.WriteString("prefix=")
 	buf.Write(prefixToHexstring(n.prefix))
+	if n.value != nil {
+		buf.WriteString(", value=")
+		buf.WriteString(fmt.Sprintf("%s", n.value))
+	}
 	buf.WriteString(", child[")
 	for i := 0; i < childrenLength; i++ {
 		if n.children[i] != nil {
@@ -810,9 +809,9 @@ func (n *node) print() string {
 		}
 	}
 	buf.WriteString("]")
-	if n.value != nil {
-		buf.WriteString(", value=")
-		buf.WriteString(fmt.Sprintf("%s", n.value))
+	if n.hash != nil {
+		buf.WriteString(", hash=")
+		buf.WriteString(hex.EncodeToString(n.hash))
 	}
 	if n.valuehash != nil {
 		buf.WriteString(", valuehash=")
@@ -919,45 +918,104 @@ func (n *node) shouldCollapseValue(lmt int) bool {
 	return !n.isDirty() && !n.isValueCollapsed() && len(n.valuestream) > lmt
 }
 
-// Returns whether it can be merged. If it is true, it can be merged and merged successfully.
-// Otherwise, it returns false
-func (n *node) mergeNode(index int, child *node) bool {
-	if index < 0 || index > 15 {
-		panic("illegal child index merged")
-	}
-	if child == nil {
-		panic("nil child merged")
-	}
-	// If the merged node is not expanded, it cannot be merged
-	if child.isCollapsed() || child.isValueCollapsed() {
+func (n *node) mergeTheLastChild(t *Trie) bool {
+	if n.hasValue() {
 		return false
 	}
-	// At present, we do not consider the case of different key lengths
-	// if n.hasValue() && child.hasValue() {
-	// 	// If the node to be merged has value, it cannot be merged
-	// 	return false
-	// }
 
-	n.prefix = append(n.prefix, byte(index))
-	if len(child.prefix) > 0 {
-		n.prefix = append(n.prefix, child.prefix...)
-	}
-	n.prefixChanged()
-
-	changed := false
-	for i := 0; i < len(child.children); i++ {
-		if child.children[i] != nil {
-			n.children[i] = child.children[i]
-			changed = true
+	// locate the only child index
+	childid := -1
+	for i := 0; i < childrenLength; i++ {
+		if n.children[i] != nil {
+			if childid == -1 {
+				// Record the first child node ID found
+				childid = i
+			} else {
+				// If the child node has been found before, clear the record (not only one child node)
+				childid = -1
+				break
+			}
 		}
 	}
-	if changed {
-		n.childChanged()
+
+	if childid >= 0 {
+		// only one child left
+		// When there is only one child node, the child node should be merged to the current node
+		childnode := n.children[childid]
+		if err := t.fullExpand(childnode); err != nil {
+			// wrong data, should panic?
+			panic(err)
+		}
+		// Setting the location of the original child node nil must be completed before the merging,
+		// because the merging may put the child of the original child in the corresponding location,
+		// and setting the location to nil after the merging will cause data loss
+		n.children[childid] = nil
+
+		n.prefix = append(n.prefix, byte(childid))
+		if len(childnode.prefix) > 0 {
+			n.prefix = append(n.prefix, childnode.prefix...)
+		}
+		n.prefixChanged()
+
+		changed := false
+		for i := 0; i < len(childnode.children); i++ {
+			if childnode.children[i] != nil {
+				n.children[i] = childnode.children[i]
+				changed = true
+			}
+		}
+		if changed {
+			n.childChanged()
+		}
+		if childnode.hasValue() {
+			n.value = childnode.value
+			n.valueChanged()
+		}
+		return true
 	}
-	if child.hasValue() {
-		n.value = child.value
-		n.valueChanged()
-	}
-	// log.Infof("%s -> %s", child, n)
-	return true
+	return false
 }
+
+//
+// // Returns whether it can be merged. If it is true, it can be merged and merged successfully.
+// // Otherwise, it returns false
+// func (n *node) mergeNode(index int, child *node) bool {
+// 	if index < 0 || index > 15 {
+// 		panic("illegal child index merged")
+// 	}
+// 	if child == nil {
+// 		panic("nil child merged")
+// 	}
+// 	// If the merged node is not expanded, it cannot be merged
+// 	if child.isCollapsed() || child.isValueCollapsed() {
+// 		return false
+// 	}
+// 	// At present, we do not consider the case of different key lengths
+// 	// if n.hasValue() && child.hasValue() {
+// 	// 	// If the node to be merged has value, it cannot be merged
+// 	// 	return false
+// 	// }
+//
+// 	n.prefix = append(n.prefix, byte(index))
+// 	if len(child.prefix) > 0 {
+// 		n.prefix = append(n.prefix, child.prefix...)
+// 	}
+// 	n.prefixChanged()
+//
+// 	changed := false
+// 	for i := 0; i < len(child.children); i++ {
+// 		if child.children[i] != nil {
+// 			n.children[i] = child.children[i]
+// 			changed = true
+// 		}
+// 	}
+// 	if changed {
+// 		n.childChanged()
+// 	}
+// 	if child.hasValue() {
+// 		n.value = child.value
+// 		n.valueChanged()
+// 	}
+// 	// log.Infof("%s -> %s", child, n)
+// 	return true
+// }

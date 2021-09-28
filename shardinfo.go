@@ -227,6 +227,14 @@ func (s AccountShards) pos(id ChainID) int {
 	return -1
 }
 
+func (s AccountShards) Clone() AccountShards {
+	return AccountShards{
+		maskBits: s.maskBits,
+		parent:   s.parent.Clone(),
+		chains:   s.chains.Clone(),
+	}
+}
+
 func (s AccountShards) GetMaskBits() uint {
 	return uint(s.maskBits)
 }
@@ -310,6 +318,13 @@ func (as AccountSharding) ShardTo(v interface{}) ChainID {
 // Returns the location of ID in shard
 func (as AccountSharding) Pos(id ChainID) int {
 	return as.shards.pos(id)
+}
+
+func (as AccountSharding) Clone() ShardInfo {
+	return AccountSharding{
+		id:     as.id,
+		shards: as.shards.Clone(),
+	}
 }
 
 func (as *AccountSharding) String() string {

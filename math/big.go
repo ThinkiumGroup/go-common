@@ -222,11 +222,7 @@ func Exp(base, exponent *big.Int) *big.Int {
 	return result
 }
 
-func BigIntForPrint(x *big.Int) string {
-	if x == nil {
-		return ""
-	}
-	s := x.String()
+func BigStringForPrint(s string) string {
 	l := len(s)
 	if l <= 5 {
 		return s
@@ -273,6 +269,33 @@ func BigIntForPrint(x *big.Int) string {
 	return string(y)
 }
 
+func BigIntForPrint(x *big.Int) string {
+	if x == nil {
+		return ""
+	}
+	s := x.String()
+	return BigStringForPrint(s)
+}
+
+func BigForPrint(x *big.Int) string {
+	if x == nil {
+		return ""
+	}
+	s := x.String()
+	ss := BigStringForPrint(s)
+	if s == ss {
+		return s
+	}
+	return s + " (" + ss + ")"
+}
+
+func BigRatForPrint(x *big.Rat) string {
+	if x == nil {
+		return ""
+	}
+	return x.RatString()
+}
+
 // r not bigger than 1
 // x returns the smallest integer not less than i64*r
 func Int64MulRat(i64 int64, r *big.Rat) (x int64) {
@@ -293,6 +316,35 @@ func MustBigInt(x *big.Int) *big.Int {
 		return big.NewInt(0)
 	}
 	return x
+}
+
+func MustCreatedBigInt(v *big.Int, isCreated bool) *big.Int {
+	if v == nil {
+		return big.NewInt(0)
+	}
+	if isCreated {
+		return v
+	}
+	return new(big.Int).Set(v)
+}
+
+func AddBigInt(base, delta *big.Int) *big.Int {
+	if delta == nil {
+		return base
+	}
+	if base == nil {
+		base = new(big.Int).Set(delta)
+	} else {
+		base.Add(base, delta)
+	}
+	return base
+}
+
+func CopyBigRat(x *big.Rat) *big.Rat {
+	if x == nil {
+		return nil
+	}
+	return new(big.Rat).Set(x)
 }
 
 // return the smallest integer not less than r. If r is too large or divided by 0,
@@ -319,6 +371,19 @@ func RatToInt64Floor(r *big.Rat) (x int64, nomeans bool) {
 }
 
 func CompareBigInt(a, b *big.Int) int {
+	if a == b {
+		return 0
+	}
+	if a == nil {
+		return -1
+	}
+	if b == nil {
+		return 1
+	}
+	return a.Cmp(b)
+}
+
+func CompareBigRat(a, b *big.Rat) int {
 	if a == b {
 		return 0
 	}

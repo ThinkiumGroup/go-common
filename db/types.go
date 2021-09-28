@@ -103,19 +103,20 @@ var (
 
 	KPRewardBase = []byte("rb")
 
-	KPRRNode   = []byte("ra") // Required Reserve Trie Node Prefix
-	KPRRValue  = []byte("rc") // Required Reserve Trie Value Prefix
-	KPRRCNode  = []byte("rd") // Required Reserve Changing Trie Node Prefix
-	KPRRCValue = []byte("re") // Required Reserve Changing Trie Value Prefix
-	KPRRRoot   = []byte("rf") // Required Reserve Trie Root Hash: prefix+EraNum -> RootOfRRTrie
+	KPRRNode          = []byte("ra") // Required Reserve Trie Node Prefix
+	KPRRValue         = []byte("rc") // Required Reserve Trie Value Prefix
+	KPRRCNode         = []byte("rd") // Required Reserve Changing Trie Node Prefix
+	KPRRCValue        = []byte("re") // Required Reserve Changing Trie Value Prefix
+	KPRRRoot          = []byte("rf") // Required Reserve Trie Root Hash: prefix+EraNum -> RootOfRRTrie
+	KPSettleInfoNode  = []byte("rg") // Settle info for one node trie node prefix
+	KPSettleInfoValue = []byte("ri") // settle info for one node trie value preifx
+	KPRRActReceipts   = []byte("rh") // RRAct Receipts in one block, prefix+RRActReceipts.RootHash -> (stream of RRActReceipts)
+	KPRRActRptIndex   = []byte("rj") // prefix+TxHash -> (RRActReceipts.RootHash, Index in RRActReceipts)
 
 	KPStorageEntry = []byte("se")
 
-	// // shard chain
-	// // prefix + FromChainID + Height -> AccountDelta Trie Hash
-	// KPReceivedDeltaHash = []byte("dr")
-
 	ErrNotFound = errors.New("data not found")
+	ErrReadOnly = errors.New("read only database")
 )
 
 func PrefixKey(prefix []byte, key []byte) []byte {
@@ -239,6 +240,14 @@ func ToStorageEntryKey(root []byte, num int) []byte {
 	nb := make([]byte, 32)
 	binary.BigEndian.PutUint32(nb, uint32(num))
 	return PrefixKey2(KPStorageEntry, root, nb)
+}
+
+func ToRRActReceiptsKey(rootOfReceipts []byte) []byte {
+	return PrefixKey(KPRRActReceipts, rootOfReceipts)
+}
+
+func ToRRActRptIndexKey(hashOfTx []byte) []byte {
+	return PrefixKey(KPRRActRptIndex, hashOfTx)
 }
 
 type Writer interface {

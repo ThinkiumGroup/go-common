@@ -15,6 +15,7 @@
 package common
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"io"
@@ -141,4 +142,33 @@ func TestHash_Equals(t *testing.T) {
 	h3 := BytesToHash(RandomBytes(HashLength))
 
 	t.Logf("h1==h2?%t, h2!=h3?%t, h1==h2?false?%t", h1 == h2, h2 != h3, h1 == h3)
+}
+
+func TestAddress_Equals(t *testing.T) {
+	{
+		var a, b *Address
+		t.Logf("default==default: %t", a == b)
+		a = nil
+		b = nil
+		t.Logf("nil==nil: %t", a == b)
+	}
+
+	{
+		t.Logf("bytes.Compare([]byte{}, nil)=%d", bytes.Compare([]byte{}, nil))
+		var a, b *Address
+		t.Logf("bytes.Compare(nil,nil)=%d", bytes.Compare(a.Slice(), b.Slice()))
+		b = BytesToAddressP(RandomBytes(AddressLength))
+		t.Logf("bytes.Compare(%x,%x)=%d", ForPrint(a, 0), ForPrint(b, 0), bytes.Compare(a.Slice(), b.Slice()))
+		a = BytesToAddressP(RandomBytes(AddressLength))
+		t.Logf("bytes.Compare(%x,%x)=%d", a.Slice(), b.Slice(), bytes.Compare(a.Slice(), b.Slice()))
+	}
+}
+
+func TestHeight_Equal(t *testing.T) {
+	var a, b *Height
+	if a.Equal(b) {
+		t.Logf("nil equal nil")
+	} else {
+		t.Fatalf("nil <> nil ?")
+	}
 }

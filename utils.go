@@ -111,6 +111,26 @@ func PointerSliceLess(slice interface{}, i, j int) (less bool, needCompare bool)
 	return false, true
 }
 
+func CompareSlices(a, b interface{}, objComparer func(c, d interface{}) int) int {
+	va, vb := reflect.ValueOf(a), reflect.ValueOf(b)
+	if va.Len() == 0 && vb.Len() == 0 {
+		return 0
+	}
+	for i := 0; i < va.Len() && i < vb.Len(); i++ {
+		p := objComparer(va.Index(i).Interface(), vb.Index(i).Interface())
+		if p != 0 {
+			return p
+		}
+	}
+	if va.Len() == vb.Len() {
+		return 0
+	} else if va.Len() < vb.Len() {
+		return -1
+	} else {
+		return 1
+	}
+}
+
 func ByteSlicesToNodeIDs(bss [][]byte) (NodeIDs, error) {
 	if len(bss) == 0 {
 		return nil, nil

@@ -202,6 +202,7 @@ type (
 		AllIDs() []ChainID           // AllOthers returns all chainID besides local chainID
 		ShardTo(interface{}) ChainID // ShardTo returns a shard chainID according to the parameter.
 		Pos(id ChainID) int          // The index in the shard group of the incoming chainid
+		Clone() ShardInfo
 	}
 )
 
@@ -579,6 +580,11 @@ func (s ChainStruct) Validate() error {
 		return errors.New("illegal mode")
 	}
 	return nil
+}
+
+func (s ChainStruct) Clone() ChainStruct {
+	o := s
+	return o
 }
 
 func (s ChainStruct) String() string {

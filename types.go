@@ -20,8 +20,10 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"sync"
 
+	"github.com/ThinkiumGroup/go-common/log"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -69,6 +71,7 @@ func init() {
 	// Initialize the hash values of Nil according to RealCipher
 	NilHashSlice = SystemHash256(nil)
 	NilHash = BytesToHash(NilHashSlice)
+	log.Debugf("NilHash set to: %s", NilHash)
 }
 
 // type NodeType string
@@ -304,4 +307,13 @@ func IdentifiersToNodeIDs(nis []NodeIdentifier) NodeIDs {
 		nids = append(nids, ni.NodeID())
 	}
 	return nids
+}
+
+type IndentLevel int
+
+func (l IndentLevel) IndentString() string {
+	if l <= 0 {
+		return ""
+	}
+	return strings.Repeat("\t", int(l))
 }

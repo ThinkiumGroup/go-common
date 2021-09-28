@@ -28,10 +28,12 @@ import (
 	"github.com/stephenfire/go-rtl"
 )
 
-var (
-	maxGenSize   = uint64(100)
-	maxValLength = int(4096)
+const (
+	maxGenSize   = 100
+	maxValLength = 4096
+)
 
+var (
 	EmptyNodeHashSlice []byte
 	EmptyNodeHash      common.Hash
 )
@@ -437,6 +439,8 @@ func (t *Trie) removeValue(node *node) (changed bool, shouldRemove bool, oldValu
 		// when value removed, if current node has no child, then the node should be removed from trie
 		return changed, true, oldValue
 	}
+	merged := node.mergeTheLastChild(t)
+	changed = changed || merged
 	return
 }
 
@@ -532,34 +536,35 @@ func (t *Trie) delete(startNode *node, prefixString []byte, offset int) (changed
 			return nchanged, true, oldValue
 		}
 
-		childid := -1
-		for i := 0; i < 16; i++ {
-			if startNode.children[i] != nil {
-				if childid == -1 {
-					// Record the first child node ID found
-					childid = i
-				} else {
-					// If the child node has been found before, clear the record (not only one child node)
-					childid = -1
-					break
-				}
-			}
-		}
-		if childid >= 0 {
-			// only one child left
-			// When there is only one child node, the child node should be merged to the current node
-			childnode := startNode.children[childid]
-			if err := t.fullExpand(childnode); err != nil {
-				// wrong data, should panic?
-				return true, false, oldValue
-			}
-			// Setting the location of the original child node nil must be completed before the merging,
-			// because the merging may put the child of the original child in the corresponding location,
-			// and setting the location to nil after the merging will cause data loss
-			startNode.children[childid] = nil
-			startNode.mergeNode(childid, childnode)
-			return true, false, oldValue
-		}
+		startNode.mergeTheLastChild(t)
+		// childid := -1
+		// for i := 0; i < childrenLength; i++ {
+		// 	if startNode.children[i] != nil {
+		// 		if childid == -1 {
+		// 			// Record the first child node ID found
+		// 			childid = i
+		// 		} else {
+		// 			// If the child node has been found before, clear the record (not only one child node)
+		// 			childid = -1
+		// 			break
+		// 		}
+		// 	}
+		// }
+		// if childid >= 0 {
+		// 	// only one child left
+		// 	// When there is only one child node, the child node should be merged to the current node
+		// 	childnode := startNode.children[childid]
+		// 	if err := t.fullExpand(childnode); err != nil {
+		// 		// wrong data, should panic?
+		// 		return true, false, oldValue
+		// 	}
+		// 	// Setting the location of the original child node nil must be completed before the merging,
+		// 	// because the merging may put the child of the original child in the corresponding location,
+		// 	// and setting the location to nil after the merging will cause data loss
+		// 	startNode.children[childid] = nil
+		// 	startNode.mergeNode(childid, childnode)
+		// 	return true, false, oldValue
+		// }
 
 		return nchanged, false, oldValue
 	}
@@ -746,10 +751,10 @@ func (t *Trie) saveOneNode(node *node) error {
 	return nil
 }
 
-func (t *Trie) stringLocked() string {
+func (t *Trie) stringLocked(printValueNodeOnly bool) string {
 	buf := new(bytes.Buffer)
 
-	t.iteratePrint(buf, "", t.root)
+	t.iteratePrint(buf, "", t.root, printValueNodeOnly)
 	return buf.String()
 }
 
@@ -757,7 +762,13 @@ func (t *Trie) String() string {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
-	return t.stringLocked()
+	return t.stringLocked(false)
+}
+
+func (t *Trie) PrintValues() string {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	return t.stringLocked(true)
 }
 
 func (t *Trie) ValueString() string {
@@ -798,7 +809,7 @@ func (t *Trie) iteratePrintNodes(buf *bytes.Buffer, prefix string, node *node) {
 	}
 }
 
-func (t *Trie) iteratePrint(buf *bytes.Buffer, prefix string, node *node) {
+func (t *Trie) iteratePrint(buf *bytes.Buffer, prefix string, node *node, valueOnly bool) {
 	if node == nil {
 		return
 	}
@@ -806,13 +817,15 @@ func (t *Trie) iteratePrint(buf *bytes.Buffer, prefix string, node *node) {
 	if len(prefix) > 0 {
 		p = prefix + "."
 	}
-	buf.WriteString(p)
-	buf.WriteString(node.print())
-	buf.WriteString("\n")
+	if valueOnly == false || (valueOnly && node.hasValue()) {
+		buf.WriteString(p)
+		buf.WriteString(node.print())
+		buf.WriteString("\n")
+	}
 	for i := 0; i < childrenLength; i++ {
 		if node.hasChild(i) {
 			t.iteratePrint(buf, fmt.Sprintf("%s%c", prefix+string(prefixToHexstring(node.prefix)),
-				valuebyteToHexbyteArray[i]), node.children[i])
+				valuebyteToHexbyteArray[i]), node.children[i], valueOnly)
 		}
 	}
 }

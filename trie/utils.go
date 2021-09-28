@@ -219,3 +219,7 @@ func (p *BatchPutter) Put(key []byte, value interface{}) (bool, error) {
 func (p *BatchPutter) Count() int {
 	return p.count
 }
+
+func IsEmptyTrieRoot(root []byte) bool {
+	return len(root) == 0 || bytes.Equal(root, EmptyNodeHashSlice)
+}

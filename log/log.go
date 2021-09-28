@@ -75,6 +75,10 @@ func init() {
 	}
 }
 
+func Logger() *logrus.Logger {
+	return rootLog
+}
+
 func Debug(msgs ...interface{}) {
 	rootLog.Debug(msgs)
 }
@@ -105,6 +109,38 @@ func Error(msgs ...interface{}) {
 
 func Errorf(format string, values ...interface{}) {
 	rootLog.Errorf(format, values...)
+}
+
+func MustDebugf(logger logrus.FieldLogger, format string, args ...interface{}) {
+	if logger == nil {
+		Debugf(format, args...)
+	} else {
+		logger.Debugf(format, args...)
+	}
+}
+
+func MustInfof(logger logrus.FieldLogger, format string, args ...interface{}) {
+	if logger == nil {
+		Infof(format, args...)
+	} else {
+		logger.Infof(format, args...)
+	}
+}
+
+func MustWarnf(logger logrus.FieldLogger, format string, args ...interface{}) {
+	if logger == nil {
+		Warnf(format, args...)
+	} else {
+		logger.Warnf(format, args...)
+	}
+}
+
+func MustErrorf(logger logrus.FieldLogger, format string, args ...interface{}) {
+	if logger == nil {
+		Errorf(format, args...)
+	} else {
+		logger.Errorf(format, args...)
+	}
 }
 
 func WithFields(fields logrus.Fields) logrus.FieldLogger {

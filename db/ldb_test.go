@@ -32,7 +32,7 @@ func ldb(db Database, t *testing.T) {
 		if err := db.Put(k, v); err != nil {
 			t.Error(err)
 		} else {
-			t.Log(k, v, "saved")
+			t.Logf("%x -> %x saved", k, v)
 		}
 	}
 

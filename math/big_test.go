@@ -344,7 +344,7 @@ func TestPrintBigInt(t *testing.T) {
 		if rr := BigIntForPrint(test.v); rr != test.r {
 			t.Errorf("BigIntForPrint(%s)=%s, want %s", test.v, rr, test.r)
 		} else {
-			t.Logf("BigIntForPrint(%s)=%s", test.v, rr)
+			t.Logf("BigIntForPrint(%s)=%s %s", test.v, rr, BigForPrint(test.v))
 		}
 	}
 }
