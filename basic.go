@@ -801,6 +801,13 @@ func (h Height) EpochNum() EpochNum {
 	return EpochNum(h) / BlocksInEpoch
 }
 
+func (h Height) UsefulEpoch() EpochNum {
+	if h.IsNil() {
+		return 0
+	}
+	return EpochNum(h) / BlocksInEpoch
+}
+
 func (h Height) BlockNum() BlockNum {
 	if h.IsNil() {
 		return NilBlock

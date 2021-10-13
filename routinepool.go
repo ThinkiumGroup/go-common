@@ -15,6 +15,7 @@
 package common
 
 import (
+	"fmt"
 	"strconv"
 	"sync"
 )
@@ -116,6 +117,14 @@ func NewRoutinePool(name string, routineSize int, queueSize int, workFunc Worker
 	}
 	ret.wg.Add(routineSize)
 	return ret
+}
+
+func (p *RoutinePool) String() string {
+	if p == nil {
+		return "RoutinePool<nil>"
+	}
+	return fmt.Sprintf("RoutinePool{%s Higter:%d Lower:%d Workers:%d}",
+		p.name, len(p.higher), len(p.lower), len(p.workers))
 }
 
 func (p *RoutinePool) Start() {

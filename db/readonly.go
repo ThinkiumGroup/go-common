@@ -50,10 +50,15 @@ type temporaryDB struct {
 }
 
 func Temporary(dbase Database) Database {
-	return &temporaryDB{
-		read:    dbase,
-		mem:     NewMemDB(),
-		deleted: make(map[string]struct{}),
+	switch t := dbase.(type) {
+	case *temporaryDB:
+		return t
+	default:
+		return &temporaryDB{
+			read:    dbase,
+			mem:     NewMemDB(),
+			deleted: make(map[string]struct{}),
+		}
 	}
 }
 
