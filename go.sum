@@ -1,7 +1,7 @@
-github.com/ThinkiumGroup/go-cipher v1.0.202 h1:9/LrtBkhg40Ob5XjY+dsQ9BFiNq/Q8C2YEpWIjzdevU=
-github.com/ThinkiumGroup/go-cipher v1.0.202/go.mod h1:/BOT8+vbcdZ2NRhvXjIut0UwRiAJn6h3om4THhV+gNE=
-github.com/ThinkiumGroup/go-ecrypto v1.2.2 h1:I2PcNvr5qBbncIdInyMfh1oZHdP259BGRDdXhc4pcdU=
-github.com/ThinkiumGroup/go-ecrypto v1.2.2/go.mod h1:LyETut4AaL1viEouw67FQXuObFsKuj0FkBLi8Ct+a/Y=
+github.com/ThinkiumGroup/go-cipher v1.0.203 h1:XNJAwfSynM30BPZU4qZcRzLp465GK40SYi/JnZPsRAw=
+github.com/ThinkiumGroup/go-cipher v1.0.203/go.mod h1:StQLwhaU/GAGX9o8GoLxWlUT/HNiCVNhY1TQTvvZ95M=
+github.com/ThinkiumGroup/go-ecrypto v1.2.4 h1:+V61sNs6VtHUeQAq82+PL8l0BffOQLLAgdluJbfUN1c=
+github.com/ThinkiumGroup/go-ecrypto v1.2.4/go.mod h1:LyETut4AaL1viEouw67FQXuObFsKuj0FkBLi8Ct+a/Y=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
