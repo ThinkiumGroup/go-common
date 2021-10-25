@@ -815,6 +815,13 @@ func (h Height) BlockNum() BlockNum {
 	return BlockNum(h % BlocksInEpoch)
 }
 
+func (h Height) UsefulBlock() BlockNum {
+	if h.IsNil() {
+		return 0
+	}
+	return BlockNum(h % BlocksInEpoch)
+}
+
 // Is it the last block in an epoch
 func (h Height) IsLastOfEpoch() bool {
 	// It is necessary to consider the special case that height is likely to be the maximum value
