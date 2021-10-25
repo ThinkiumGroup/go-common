@@ -15,7 +15,8 @@
 package common
 
 var (
-	DefaultRpcEndpoint = Endpoint{NetType: "tcp", Address: DefaultRpcAddress}
+	DefaultRpcEndpoint    = Endpoint{NetType: "tcp", Address: DefaultRpcAddress}
+	DefaultEthRpcEndpoint = Endpoint{NetType: "tcp", Address: DefaultEthRpcAddress}
 )
 
 type Endpoint struct {
