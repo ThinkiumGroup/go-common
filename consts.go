@@ -34,8 +34,8 @@ const (
 	NilChainID                = ChainID(ReservedMaxChainID)
 
 	// base chainid for ethereum compatible
-	// BigChainIDBase = 100007
-	BigChainIDBase = 70000
+	BigChainIDBaseV2 = 100007
+	BigChainIDBase   = 70000
 
 	// length of types
 	NodeIDBits        = 512
