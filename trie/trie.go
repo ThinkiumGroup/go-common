@@ -181,6 +181,31 @@ func (t *Trie) Clone() *Trie {
 	}
 }
 
+func (t *Trie) Rebase(dbase db.Database) (*Trie, error) {
+	if t == nil {
+		return nil, nil
+	}
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	if err := t.commitLocked(); err != nil {
+		return nil, err
+	}
+	root, err := t.hashLocked()
+	if err != nil {
+		return nil, err
+	}
+	na, _ := db.RebaseAdapter(t.nodeAdapter, dbase)
+	va, _ := db.RebaseAdapter(t.valueAdapter, dbase)
+	return &Trie{
+		root: NewNodeWithFuncs(root, 0, t.root.valueEncode,
+			t.root.valueDecode, t.root.valueHasher, t.root.valueExpander),
+		originHash:   root,
+		nodeAdapter:  na,
+		valueAdapter: va,
+		gen:          0,
+	}, nil
+}
+
 func (t *Trie) Inherit(root []byte) *Trie {
 	if t == nil {
 		return nil

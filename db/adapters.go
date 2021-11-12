@@ -14,9 +14,30 @@
 
 package db
 
+import (
+	"github.com/ThinkiumGroup/go-common"
+)
+
 type DataAdapter interface {
 	Load(key []byte) (value []byte, err error)
 	Save(key []byte, value []byte) error
+}
+
+type DatabasedAdapter interface {
+	DataAdapter
+	Rebase(dbase Database) (DatabasedAdapter, error)
+}
+
+func RebaseAdapter(adapter DataAdapter, dbase Database) (DataAdapter, error) {
+	if adapter == nil {
+		return nil, nil
+	}
+	switch da := adapter.(type) {
+	case DatabasedAdapter:
+		return da.Rebase(dbase)
+	default:
+		return da, nil
+	}
 }
 
 type KeyBatch struct {
@@ -58,6 +79,13 @@ func NewKeyPrefixedDataAdapter(database Database, keyPrefix []byte) DataAdapter 
 		ret.keyPrefix = nil
 	}
 	return ret
+}
+
+func (k *keyPrefixedDataAdapter) Rebase(dbase Database) (DatabasedAdapter, error) {
+	return &keyPrefixedDataAdapter{
+		database:  dbase,
+		keyPrefix: common.CopyBytes(k.keyPrefix),
+	}, nil
 }
 
 func (k *keyPrefixedDataAdapter) key(key []byte) []byte {
@@ -156,15 +184,5 @@ func (d *KeyDatabase) Batch(batch Batch) error {
 
 func (d *KeyDatabase) Close() error {
 	d.keyFunc = nil
-	return nil
-}
-
-type DummyAdapter struct{}
-
-func (d DummyAdapter) Load(key []byte) (value []byte, err error) {
-	return key, nil
-}
-
-func (d DummyAdapter) Save(key []byte, value []byte) error {
 	return nil
 }

@@ -248,6 +248,21 @@ func locateNode(start *TreeNode, prefix []byte, adapter db.DataAdapter, tracers 
 	return nil, -1, nil, false, common.ErrUnknown
 }
 
+func (h *HistoryTree) Rebase(dbase db.Database) (*HistoryTree, error) {
+	if h == nil {
+		return nil, nil
+	}
+
+	if err := h.Commit(); err != nil {
+		return nil, err
+	}
+	root, err := h.HashValue()
+	if err != nil {
+		return nil, err
+	}
+	return NewHistoryTree(dbase, root, false)
+}
+
 func (h *HistoryTree) HashValue() ([]byte, error) {
 	if h == nil || h.root == nil {
 		return common.CopyBytes(common.NilHashSlice), nil

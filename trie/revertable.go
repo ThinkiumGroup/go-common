@@ -18,6 +18,7 @@ import (
 	"sync"
 
 	"github.com/ThinkiumGroup/go-common"
+	"github.com/ThinkiumGroup/go-common/db"
 )
 
 type RevertableTrie struct {
@@ -39,6 +40,23 @@ func (r *RevertableTrie) Copy() *RevertableTrie {
 		ret.Origin = r.Origin.Clone()
 	}
 	return ret
+}
+
+func (r *RevertableTrie) Rebase(dbase db.Database) (*RevertableTrie, error) {
+	if r == nil {
+		return nil, nil
+	}
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	origin, err := r.Origin.Rebase(dbase)
+	if err != nil {
+		return nil, err
+	}
+	return &RevertableTrie{
+		Origin: origin,
+		Live:   nil,
+		chkpts: nil,
+	}, nil
 }
 
 func (r *RevertableTrie) SetTo(newTrie *Trie) error {
