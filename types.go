@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -309,6 +310,25 @@ func IdentifiersToNodeIDs(nis []NodeIdentifier) NodeIDs {
 	return nids
 }
 
+type Infoer interface {
+	InfoString(level IndentLevel) string
+}
+
+func InfoStringer(v reflect.Value, level IndentLevel) string {
+	if !v.IsValid() {
+		return fmt.Sprintf("%sN/A", level.IndentString())
+	}
+	o := v.Interface()
+	switch obj := o.(type) {
+	case Infoer:
+		return obj.InfoString(level)
+	case fmt.Stringer:
+		return fmt.Sprintf("%s%s", level.IndentString(), obj.String())
+	default:
+		return fmt.Sprintf("%sUKN", level.IndentString())
+	}
+}
+
 type IndentLevel int
 
 func (l IndentLevel) IndentString() string {
@@ -316,4 +336,37 @@ func (l IndentLevel) IndentString() string {
 		return ""
 	}
 	return strings.Repeat("\t", int(l))
+}
+
+func (l IndentLevel) InfoString(o interface{}) string {
+	if o == nil {
+		return "<nil>"
+	}
+	v := reflect.ValueOf(o)
+	if !v.IsValid() {
+		return "N/A"
+	}
+	kind := v.Kind()
+	switch kind {
+	case reflect.Array, reflect.Slice:
+		indent := l.IndentString()
+		if kind == reflect.Slice && v.IsNil() {
+			return fmt.Sprintf("%s<nil>", indent)
+		}
+		next := l + 1
+		buf := new(bytes.Buffer)
+		buf.WriteByte('[')
+		if v.Len() > 0 {
+			for i := 0; i < v.Len(); i++ {
+				one := v.Index(i)
+				buf.WriteString(fmt.Sprintf("\n%s,", InfoStringer(one, next)))
+			}
+			buf.WriteByte('\n')
+			buf.WriteString(indent)
+		}
+		buf.WriteByte(']')
+		return buf.String()
+	default:
+		return InfoStringer(v, l)
+	}
 }
