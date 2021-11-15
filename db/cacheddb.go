@@ -15,6 +15,7 @@
 package db
 
 import (
+	"sync"
 	"sync/atomic"
 
 	"github.com/hashicorp/golang-lru"
@@ -50,6 +51,7 @@ func (b *cachedBatch) Size() int {
 type cachedDB struct {
 	baseDB Database
 	cache  *lru.Cache
+	lock   sync.RWMutex
 
 	writecount uint64 // counter for writing
 	hitcount   uint64 // counter for hitting the cache when reading
@@ -84,6 +86,8 @@ func NewCachedDB(db Database, cacheSize int) (*cachedDB, error) {
 }
 
 func (d *cachedDB) Put(key, value []byte) error {
+	d.lock.Lock()
+	defer d.lock.Unlock()
 	atomic.AddUint64(&(d.writecount), 1)
 	if err := d.baseDB.Put(key, value); err != nil {
 		return err
@@ -93,6 +97,8 @@ func (d *cachedDB) Put(key, value []byte) error {
 }
 
 func (d *cachedDB) Has(key []byte) (bool, error) {
+	d.lock.RLock()
+	defer d.lock.RUnlock()
 	_, ok := d.cache.Get(string(key))
 	if ok {
 		atomic.AddUint64(&(d.hitcount), 1)
@@ -103,6 +109,8 @@ func (d *cachedDB) Has(key []byte) (bool, error) {
 }
 
 func (d *cachedDB) Get(key []byte) ([]byte, error) {
+	d.lock.RLock()
+	defer d.lock.RUnlock()
 	ckey := string(key)
 	v, ok := d.cache.Get(ckey)
 	if ok {
@@ -119,6 +127,8 @@ func (d *cachedDB) Get(key []byte) ([]byte, error) {
 }
 
 func (d *cachedDB) Delete(key []byte) error {
+	d.lock.Lock()
+	defer d.lock.Unlock()
 	atomic.AddUint64(&(d.writecount), 1)
 	d.cache.Remove(string(key))
 	return d.baseDB.Delete(key)
@@ -131,6 +141,8 @@ func (d *cachedDB) NewBatch() Batch {
 	}
 }
 func (d *cachedDB) Batch(batch Batch) error {
+	d.lock.Lock()
+	defer d.lock.Unlock()
 	atomic.AddUint64(&(d.writecount), 1)
 	if cb, ok := batch.(*cachedBatch); ok {
 		for k, _ := range cb.keys {
