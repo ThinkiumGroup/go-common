@@ -316,16 +316,16 @@ type Infoer interface {
 
 func InfoStringer(v reflect.Value, level IndentLevel) string {
 	if !v.IsValid() {
-		return fmt.Sprintf("%sN/A", level.IndentString())
+		return "N/A"
 	}
 	o := v.Interface()
 	switch obj := o.(type) {
 	case Infoer:
 		return obj.InfoString(level)
 	case fmt.Stringer:
-		return fmt.Sprintf("%s%s", level.IndentString(), obj.String())
+		return fmt.Sprintf("%s", obj.String())
 	default:
-		return fmt.Sprintf("%sUKN", level.IndentString())
+		return "UKN"
 	}
 }
 
@@ -351,15 +351,17 @@ func (l IndentLevel) InfoString(o interface{}) string {
 	case reflect.Array, reflect.Slice:
 		indent := l.IndentString()
 		if kind == reflect.Slice && v.IsNil() {
-			return fmt.Sprintf("%s<nil>", indent)
+			// return fmt.Sprintf("%s<nil>", indent)
+			return "<nil>"
 		}
 		next := l + 1
+		nextIndent := next.IndentString()
 		buf := new(bytes.Buffer)
 		buf.WriteByte('[')
 		if v.Len() > 0 {
 			for i := 0; i < v.Len(); i++ {
 				one := v.Index(i)
-				buf.WriteString(fmt.Sprintf("\n%s,", InfoStringer(one, next)))
+				buf.WriteString(fmt.Sprintf("\n%s%s,", nextIndent, InfoStringer(one, next)))
 			}
 			buf.WriteByte('\n')
 			buf.WriteString(indent)
