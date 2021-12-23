@@ -105,27 +105,30 @@ const (
 	ProofHeaderVCCRoot   ProofType = 0x24 // To proof header VCC root
 	ProofHeaderCCCRoot   ProofType = 0x25 // To proof header Cashed root
 	ProofHeaderHdsRoot   ProofType = 0x26 // To proof header Headers root
+
+	ProofHeaderBase  ProofType = 0x30 // proof header type = ProofHeaderBase + models.BH* (Header column index)
+	ProofHeaderLimit           = ProofHeaderBase + 33
 )
 
-var (
-	// Type to be proved -> index of value to be proved in HashList
-	proofableMap = map[ProofType]int{
-		ProofHeaderDeltas:    12,
-		ProofHeaderHistory:   1,
-		ProofHeaderStateRoot: 13,
-		ProofHeaderVCCRoot:   16,
-		ProofHeaderCCCRoot:   17,
-		ProofHeaderHdsRoot:   20,
-	}
-)
-
-func ProofableMap(typ ProofType) (int, bool) {
-	i, ok := proofableMap[typ]
-	return i, ok
-}
+// var (
+// 	// Type to be proved -> index of value to be proved in HashList
+// 	proofableMap = map[ProofType]int{
+// 		ProofHeaderDeltas:    12,
+// 		ProofHeaderHistory:   1,
+// 		ProofHeaderStateRoot: 13,
+// 		ProofHeaderVCCRoot:   16,
+// 		ProofHeaderCCCRoot:   17,
+// 		ProofHeaderHdsRoot:   20,
+// 	}
+// )
+//
+// func ProofableMap(typ ProofType) (int, bool) {
+// 	i, ok := proofableMap[typ]
+// 	return i, ok
+// }
 
 func (p ProofType) IsProofChild() bool {
-	return p >= 0 && p <= 15
+	return p <= 15
 }
 
 func (p ProofType) IsProofValue() bool {
@@ -144,17 +147,26 @@ func (p ProofType) IsProofMerkleOnly() bool {
 	return p == ProofMerkleOnly
 }
 
-func (p ProofType) IsProofHeaderProperty() bool {
+func (p ProofType) IsProofHeaderProperty() (headerIndex int, ok bool) {
 	switch p {
-	case ProofHeaderDeltas,
-		ProofHeaderHistory,
-		ProofHeaderStateRoot,
-		ProofHeaderVCCRoot,
-		ProofHeaderCCCRoot,
-		ProofHeaderHdsRoot:
-		return true
+	case ProofHeaderDeltas:
+		return 12, true
+	case ProofHeaderHistory:
+		return 1, true
+	case ProofHeaderStateRoot:
+		return 13, true
+	case ProofHeaderVCCRoot:
+		return 16, true
+	case ProofHeaderCCCRoot:
+		return 17, true
+	case ProofHeaderHdsRoot:
+		return 20, true
+	default:
+		if p >= ProofHeaderBase && p < ProofHeaderLimit {
+			return int(p - ProofHeaderBase), true
+		}
+		return 0, false
 	}
-	return false
 }
 
 func (p ProofType) String() string {
@@ -173,7 +185,7 @@ func (p ProofType) String() string {
 	if p.IsProofMerkleOnly() {
 		return "M"
 	}
-	if p.IsProofHeaderProperty() {
+	if _, ok := p.IsProofHeaderProperty(); ok {
 		return fmt.Sprintf("H%d", p)
 	}
 	return "NA"
@@ -227,7 +239,7 @@ func NewMerkleOnlyProof(ptype ProofType, proofs *common.MerkleProofs) *NodeProof
 }
 
 func NewHeaderPropertyProof(ptype ProofType, indexHash *common.Hash, proofs *common.MerkleProofs) *NodeProof {
-	if ptype.IsProofHeaderProperty() == false {
+	if _, ok := ptype.IsProofHeaderProperty(); !ok {
 		panic(fmt.Sprintf("expecting a ProofHeaderProperty type, but %s", ptype))
 	}
 	return NewNodeProof(ptype, NodeHeader{}, indexHash, proofs)
@@ -330,7 +342,7 @@ func (n *NodeProof) Proof(toBeProof common.Hash) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else if n.PType.IsProofHeaderProperty() {
+	} else if _, ok := n.PType.IsProofHeaderProperty(); ok {
 		// To proof fields in BlockHeader
 		if n.ValueHash == nil {
 			return nil, ErrMissingValue
@@ -477,13 +489,17 @@ func (n *NodeProof) ExistenceHash() ([]byte, error) {
 }
 
 func (n *NodeProof) IsHeaderOf(chainId common.ChainID, height common.Height) bool {
-	if n == nil || !n.PType.IsProofHeaderProperty() || n.ValueHash == nil {
+	if n == nil || n.ValueHash == nil {
 		return false
 	}
-	i, ok := ProofableMap(n.PType)
+	i, ok := n.PType.IsProofHeaderProperty()
 	if !ok {
 		return false
 	}
+	// i, ok := ProofableMap(n.PType)
+	// if !ok {
+	// 	return false
+	// }
 	h := common.HeaderIndexHash(common.ToHeaderPosHashBuffer(chainId, height), byte(i))
 	if bytes.Equal(h, n.ValueHash[:]) {
 		return true

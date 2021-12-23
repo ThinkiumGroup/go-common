@@ -69,8 +69,6 @@ var (
 	KPBlockNumByHash = []byte("bn")
 	// prefix+height -> Header hash
 	KPBlockHashByNum = []byte("bh")
-	// // prefix+hash(header) -> Header encoded value
-	// KPBlockHeader = []byte("bv")
 	// prefix+hash(header) -> block encoded value
 	KPBlock = []byte("bb")
 	// prefix -> current Highest block height
@@ -79,10 +77,12 @@ var (
 	KPReceipts = []byte("br")
 	// prefix+height -> received data block (not yet processed, just persisted in the database)
 	KPBlockNotVerified = []byte("bv")
-	// prefix+EpochNum -> election results of the EpochNum'th committee
+	// prefix+ChainID+EpochNum -> election results of the EpochNum'th committee
 	// key is the elected Epoch, not the Epoch at the time of the election, starting
 	// from 0. If the election result fails, continue
 	KPEpochComm = []byte("bec")
+	// prefix+EpochNum -> Height of the block including the election results of the committee of EpochNum
+	KPEpochCommIndex = []byte("bei")
 
 	// main chain
 	// prefix + FormalizedChainID -> ChainInfos Trie Node and Value
@@ -210,6 +210,10 @@ func ToChainCommitteeKey(chainId common.ChainID, epochNum common.EpochNum) []byt
 
 func ToEpochCommKey(chainId common.ChainID, epoch common.EpochNum) []byte {
 	return PrefixKey2(KPEpochComm, chainId.Formalize(), epoch.Bytes())
+}
+
+func ToEpochCommIndexKey(epoch common.EpochNum) []byte {
+	return PrefixKey(KPEpochCommIndex, epoch.Bytes())
 }
 
 func ToChainHeightHeaderKey(chainId common.ChainID, height common.Height) []byte {
