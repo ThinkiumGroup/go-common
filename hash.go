@@ -79,6 +79,21 @@ func (p *MerkleProofs) Key() (key uint64, ok bool) {
 	return p.Paths.Uint64(), true
 }
 
+func (p *MerkleProofs) BigKey(bigKey *big.Int, startAt int) int {
+	if bigKey == nil || startAt < 0 {
+		return startAt
+	}
+	if p == nil || len(p.Hashs) == 0 {
+		return startAt
+	}
+	i := 0
+	for ; i < len(p.Hashs); i++ {
+		pos := startAt + i
+		bigKey.SetBit(bigKey, pos, p.Paths.Bit(i))
+	}
+	return i + startAt
+}
+
 // h: a point on the proofing path
 // order: Is this point on the left side (true) or the right side (false) of the proof path
 func (p *MerkleProofs) Append(h Hash, order bool) {
@@ -250,7 +265,6 @@ func (p MerkleProofs) String() string {
 	defer BytesBufferPool.Put(buf)
 	buf.Reset()
 
-	// buf.WriteString("Proof{(")
 	buf.WriteString("Proof{")
 	buf.WriteString(fmt.Sprintf("(%x),", p.Paths.Uint64()))
 	if len(p.Hashs) > 0 {
@@ -267,10 +281,28 @@ func (p MerkleProofs) String() string {
 			}
 		}
 	}
-	// buf.WriteByte(')')
-	// buf.WriteString(fmt.Sprintf(", To: %x", p.Result))
 	buf.WriteByte('}')
 
+	return buf.String()
+}
+
+func (p *MerkleProofs) InfoString(level IndentLevel) string {
+	if p == nil {
+		return "MerkleProofs<nil>"
+	}
+	buf := BytesBufferPool.Get().(*bytes.Buffer)
+	defer BytesBufferPool.Put(buf)
+	buf.Reset()
+
+	base := level.IndentString()
+	buf.WriteString("MerkleProofs{")
+	buf.WriteString(fmt.Sprintf("\n%s\tPath: %x", base, p.Paths.Uint64()))
+	for i, h := range p.Hashs {
+		buf.WriteString(fmt.Sprintf("\n%s\t%d: (%d)%x", base, i, p.Paths.Bit(i), h[:]))
+	}
+	buf.WriteString("\n")
+	buf.WriteString(base)
+	buf.WriteByte('}')
 	return buf.String()
 }
 

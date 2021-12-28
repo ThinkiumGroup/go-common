@@ -499,51 +499,57 @@ func historytreeproof(t *testing.T, htree *HistoryTree, p uint64) (value []byte,
 
 func TestHistoryTree_MergeProof(t *testing.T) {
 	dbase1 := db.NewMemDB()
-	defer dbase1.Close()
+	defer func() {
+		_ = dbase1.Close()
+	}()
 	dbase2 := db.NewMemDB()
-	defer dbase2.Close()
+	defer func() {
+		_ = dbase2.Close()
+	}()
 
 	htree1, err := NewHistoryTree(dbase1, nil, true)
 	if err != nil {
-		t.Errorf("new tree error: %v", err)
-		return
+		t.Fatalf("new tree error: %v", err)
 	}
-	start, end := uint64(0), uint64(300)
+	start, end := uint64(0), uint64(3000)
 	if err := appendhistory(htree1, start, end); err != nil {
-		t.Errorf("append from %d to %d error: %v", start, end, err)
-		return
+		t.Fatalf("append from %d to %d error: %v", start, end, err)
 	} else {
 		t.Logf("Append from %d to %d ok", start, end)
 	}
 
 	value15, proofs15, ok := htree1.GetProof(15)
 	if !ok {
-		return
+		t.Fatal("get proof 15 failed")
 	}
 	value128, proofs128, ok := htree1.GetProof(128)
 	if !ok {
-		return
+		t.Fatal("get proof 128 failed")
 	}
 	value200, proofs200, ok := htree1.GetProof(200)
 	if !ok {
-		return
+		t.Fatal("get proof 200 failed")
 	}
-	valuel, proofsl, ok := htree1.GetProof(htree1.Expecting() - 1)
+	value2345, proofs2345, ok := htree1.GetProof(2345)
 	if !ok {
-		return
+		t.Fatal("get proof 2345 failed")
+	}
+	last := htree1.Expecting() - 1
+	valuel, proofsl, ok := htree1.GetProof(last)
+	if !ok {
+		t.Fatalf("get proof (%d) failed", last)
 	}
 
-	htree2, err := RestoreTreeFromProofs(dbase2, htree1.expecting-1, valuel, proofsl)
+	htree2, err := RestoreTreeFromProofs(dbase2, last, valuel, proofsl)
 	if err != nil {
-		t.Errorf("restore tree from proofs error: %v", err)
-		return
+		t.Fatalf("restore tree from proofs error: %v", err)
 	} else {
 		t.Logf("restored tree: %v", htree2)
 	}
 
 	merge := func(key uint64, value []byte, proofs ProofChain) bool {
 		if err := htree2.MergeProof(key, value, proofs); err != nil {
-			t.Errorf("MergeProof(%d,%x,%s) error: %v", key, value, proofs, err)
+			t.Logf("MergeProof(%d,%x,%s) error: %v", key, value, proofs, err)
 			return false
 		} else {
 			t.Logf("MergeProof(%d) ok", key)
@@ -559,91 +565,102 @@ func TestHistoryTree_MergeProof(t *testing.T) {
 
 	if !merge(15, value15, proofs15) ||
 		!merge(128, value128, proofs128) ||
-		!merge(200, value200, proofs200) {
+		!merge(200, value200, proofs200) ||
+		!merge(2345, value2345, proofs2345) {
+		t.Fatalf("merge check failed")
 		return
 	}
 
 	rootCompare := func(htree1 *HistoryTree, htree2 *HistoryTree) bool {
 		root1, err := htree1.HashValue()
 		if err != nil {
-			t.Errorf("hash error: %v", err)
+			t.Logf("hash error: %v", err)
 			return false
 		}
 		root2, err := htree2.HashValue()
 		if err != nil {
+			t.Logf("htree2.hash failed: %v", err)
 			return false
 		}
 		if !bytes.Equal(root1, root2) {
-			t.Errorf("historyTree root not equal (%x) (%x)", root1, root2)
+			t.Logf("historyTree root not equal (%x) (%x)", root1, root2)
 			return false
 		}
 		return true
 	}
 
 	if err = htree2.Commit(); err != nil {
-		return
+		t.Fatalf("htree2.commit failed: %v", err)
 	}
 	if !rootCompare(htree1, htree2) {
-		return
+		t.Fatal("roots of htree1 htree2 are not equal")
 	}
 
 	start1, end1 := end, end+300
 	if err = appendhistory(htree1, start1, end1); err != nil {
-		t.Errorf("append1 %d->%d error: %v", start1, end1, err)
-		return
+		t.Fatalf("append1 %d->%d error: %v", start1, end1, err)
 	}
 	if err = appendhistory(htree2, start1, end1); err != nil {
-		t.Errorf("append2 %d->%d error: %v", start1, end1, err)
-		return
+		t.Fatalf("append2 %d->%d error: %v", start1, end1, err)
 	}
 
 	if !rootCompare(htree1, htree2) {
-		return
+		t.Fatal("roots of htree1 htree2 are not equal 2")
 	}
 	root1, _ := htree1.HashValue()
 
 	value152, proofs152, ok := htree2.GetProof(15)
 	if !ok {
-		return
+		t.Fatal("htree2 get proof 15 failed")
 	}
 	value1282, proofs1282, ok := htree2.GetProof(128)
 	if !ok {
-		return
+		t.Fatal("htree2 get proof 128 failed")
 	}
 	value2002, proofs2002, ok := htree2.GetProof(200)
 	if !ok {
-		return
+		t.Fatal("htree2 get proof 200 failed")
+	}
+	value23452, proofs23452, ok := htree1.GetProof(2345)
+	if !ok {
+		t.Fatal("htree2 get proof 2345 failed")
 	}
 
-	if !bytes.Equal(value15, value152) || !bytes.Equal(value128, value1282) || !bytes.Equal(value200, value2002) {
-		t.Errorf("values not equal")
-		return
+	if !bytes.Equal(value15, value152) || !bytes.Equal(value128, value1282) ||
+		!bytes.Equal(value200, value2002) || !bytes.Equal(value2345, value23452) {
+		t.Fatal("values' of htree2 not equal with htree1s'")
 	}
 
 	prooffunc := func(key uint64, value []byte, proofs ProofChain, rootHash []byte) bool {
-		h, ok := proofs.Key()
-		if ok {
-			if key != h {
-				return false
-			}
+		// h, ok := proofs.Key()
+		// if ok {
+		// 	if key != h {
+		// 		return false
+		// 	}
+		// }
+		h := proofs.BigKey().Uint64()
+		if key != h {
+			t.Fatalf("proof.BigKey=%d but key input=%d", h, key)
+			return false
 		}
 		r, err := proofs.Proof(common.BytesToHash(value))
 		if err != nil {
-			t.Errorf("%d.Proof(%x) %s error: %v", key, value, proofs, err)
+			t.Fatalf("%d.Proof(%x) %s error: %v", key, value, proofs, err)
 			return false
 		}
 		if bytes.Equal(r, rootHash) {
 			t.Logf("%d proofs check %s", key, proofs)
 			return true
 		} else {
-			t.Errorf("%d proofs %s failed", key, proofs)
+			t.Fatalf("%d proofs %s failed", key, proofs)
 			return false
 		}
 	}
 
 	if !prooffunc(15, value152, proofs152, root1) ||
 		!prooffunc(128, value1282, proofs1282, root1) ||
-		!prooffunc(200, value2002, proofs2002, root1) {
+		!prooffunc(200, value2002, proofs2002, root1) ||
+		!prooffunc(2345, value23452, proofs23452, root1) {
 		return
 	}
 }

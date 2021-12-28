@@ -57,7 +57,7 @@ func NewHistoryTree(dbase db.Database, rootHash []byte, checkPrecedingNil bool) 
 		// root node is nil
 	} else {
 		rootNode = NewTreeNode()
-		if err := rootNode.PutValue(nil, common.CopyBytes(rootHash)); err != nil {
+		if err := rootNode.PutValue(adapter, nil, common.CopyBytes(rootHash)); err != nil {
 			return nil, err
 		}
 		prefix, _, _, err := findRightmost(rootNode, adapter, checkPrecedingNil)
@@ -87,6 +87,7 @@ func RestoreTreeFromProofs(dbase db.Database, key uint64, value []byte, proofs P
 	if len(value) != common.HashLength || len(proofs) != HistoryTreeDepth {
 		return nil, common.ErrIllegalParams
 	}
+	adapter := db.NewKeyPrefixedDataAdapter(dbase, db.KPHistoryNode)
 
 	last := HistoryTreeDepth - 1
 	prefix := heightToPrefix(key)
@@ -96,10 +97,10 @@ func RestoreTreeFromProofs(dbase db.Database, key uint64, value []byte, proofs P
 	for i := 0; i < HistoryTreeDepth; i++ {
 		if i == 0 {
 			// leaf node
-			nodes[i], err = NewNodeByProof(int(prefix[last-i]), value, nil, proofs[i].ChildProofs)
+			nodes[i], err = NewNodeByProof(adapter, int(prefix[last-i]), value, nil, proofs[i].ChildProofs)
 		} else {
 			// non-leaf node
-			nodes[i], err = NewNodeByProof(int(prefix[last-i]), nil, nodes[i-1], proofs[i].ChildProofs)
+			nodes[i], err = NewNodeByProof(adapter, int(prefix[last-i]), nil, nodes[i-1], proofs[i].ChildProofs)
 		}
 		if err != nil {
 			return nil, err
@@ -110,7 +111,7 @@ func RestoreTreeFromProofs(dbase db.Database, key uint64, value []byte, proofs P
 	tree = &HistoryTree{
 		expecting: key + 1,
 		root:      nodes[last],
-		adapter:   db.NewKeyPrefixedDataAdapter(dbase, db.KPHistoryNode),
+		adapter:   adapter,
 	}
 	return tree, nil
 }
@@ -391,7 +392,8 @@ func (h *HistoryTree) MergeProof(key uint64, value []byte, proofs ProofChain) er
 	if h.root == nil {
 		return errors.New("historytree is nil")
 	}
-	proofsKey, _ := proofs.Key()
+	// proofsKey, _ := proofs.Key()
+	proofsKey := proofs.BigKey().Uint64()
 	if proofsKey != key {
 		return fmt.Errorf("key and proofs is not match, KEY:%d but Proofs.Key():%d", key, proofsKey)
 	}
@@ -438,10 +440,10 @@ func (h *HistoryTree) MergeProof(key uint64, value []byte, proofs ProofChain) er
 			// creating when the node is missing
 			if i == 0 {
 				// leaf node
-				nodes[i], err = NewNodeByProof(int(prefix[last-i]), value, nil, proofs[i].ChildProofs)
+				nodes[i], err = NewNodeByProof(h.adapter, int(prefix[last-i]), value, nil, proofs[i].ChildProofs)
 			} else {
 				// non-leaf node
-				nodes[i], err = NewNodeByProof(int(prefix[last-i]), nil, nodes[i-1], proofs[i].ChildProofs)
+				nodes[i], err = NewNodeByProof(h.adapter, int(prefix[last-i]), nil, nodes[i-1], proofs[i].ChildProofs)
 			}
 			if err != nil {
 				return fmt.Errorf("NewNodeByProof(%d) at %d error: %v", int(prefix[last-i]), i, err)
@@ -449,9 +451,9 @@ func (h *HistoryTree) MergeProof(key uint64, value []byte, proofs ProofChain) er
 		} else {
 			// merge when the node already exists
 			if i == 0 {
-				err = nodes[i].MergeProof(int(prefix[last-i]), value, nil, proofs[i].ChildProofs)
+				err = nodes[i].MergeProof(h.adapter, int(prefix[last-i]), value, nil, proofs[i].ChildProofs)
 			} else {
-				err = nodes[i].MergeProof(int(prefix[last-i]), nil, nodes[i-1], proofs[i].ChildProofs)
+				err = nodes[i].MergeProof(h.adapter, int(prefix[last-i]), nil, nodes[i-1], proofs[i].ChildProofs)
 			}
 			if err != nil {
 				return fmt.Errorf("MergeProof(%d) at %d error: %v", int(prefix[last-i]), i, err)
@@ -495,7 +497,8 @@ func NewTreeNode() *TreeNode {
 
 // When value is a legal hash value, a new leaf node is generated. Otherwise, when the
 // child is not nil, a new non leaf node is generated.
-func NewNodeByProof(index int, value []byte, child *TreeNode, proof *common.MerkleProofs) (rn *TreeNode, err error) {
+func NewNodeByProof(adapter db.DataAdapter, index int, value []byte, child *TreeNode,
+	proof *common.MerkleProofs) (rn *TreeNode, err error) {
 	if index < 0 || index >= childrenLength ||
 		(len(value) != common.HashLength && child == nil) ||
 		proof == nil || proof.Len() != ValueKeyLength {
@@ -506,7 +509,7 @@ func NewNodeByProof(index int, value []byte, child *TreeNode, proof *common.Merk
 		isLeaf:  len(value) == common.HashLength, // If value is a legal hash value, it is a leaf node
 		Branchs: make(map[string][]byte),
 	}
-	if err := node.MergeProof(index, value, child, proof); err != nil {
+	if err := node.MergeProof(adapter, index, value, child, proof); err != nil {
 		return nil, err
 	}
 	return node, nil
@@ -787,7 +790,7 @@ func (n *TreeNode) toSerialNode() (sn *serialNode, err error) {
 }
 
 // for de-serialization only
-func (n *TreeNode) fromSerialNode(sn *serialNode) {
+func (n *TreeNode) fromSerialNode(adapter db.DataAdapter, sn *serialNode) {
 	if sn == nil {
 		return
 	}
@@ -803,7 +806,7 @@ func (n *TreeNode) fromSerialNode(sn *serialNode) {
 		for i := 0; i < childrenLength; i++ {
 			if sn.ChildrenOrLeafs[i] != nil {
 				n.Children[i] = NewTreeNode()
-				_ = n.Children[i].PutValue([]byte(""), sn.ChildrenOrLeafs[i])
+				_ = n.Children[i].PutValue(adapter, []byte(""), sn.ChildrenOrLeafs[i])
 			}
 		}
 	}
@@ -940,9 +943,9 @@ func (n *TreeNode) readFull(root []byte, adapter db.DataAdapter) error {
 		if err = rtl.Decode(vr, sn); err != nil {
 			return err
 		}
-		n.fromSerialNode(sn)
+		n.fromSerialNode(adapter, sn)
 	} else {
-		err = n.decodeDescendants(vr)
+		err = n.decodeDescendants(adapter, vr)
 	}
 	return err
 }
@@ -969,9 +972,14 @@ func (n *TreeNode) clearAncestors(prefix []byte) error {
 	return nil
 }
 
-func (n *TreeNode) PutValue(prefix []byte, hashs []byte) error {
+func (n *TreeNode) PutValue(adapter db.DataAdapter, prefix []byte, hashs []byte) error {
 	if n.isCollapsed() {
-		return common.ErrIllegalStatus
+		if adapter == nil {
+			return common.ErrNoAdapter
+		}
+		if err := n.Expand(adapter); err != nil {
+			return common.ErrIllegalStatus
+		}
 	}
 	if len(prefix) >= ValueKeyLength {
 		return common.ErrUnsupported
@@ -1048,7 +1056,8 @@ func (n *TreeNode) putLeaf(index int, value []byte, appendCheck bool) error {
 	return nil
 }
 
-func (n *TreeNode) MergeProof(index int, value []byte, child *TreeNode, proof *common.MerkleProofs) error {
+func (n *TreeNode) MergeProof(adapter db.DataAdapter, index int, value []byte, child *TreeNode,
+	proof *common.MerkleProofs) error {
 	if n == nil {
 		return common.ErrNil
 	}
@@ -1077,11 +1086,11 @@ func (n *TreeNode) MergeProof(index int, value []byte, child *TreeNode, proof *c
 						if n.Children[p] == nil {
 							// Creating a node with only root hash is equal to a collapsed node
 							n.Children[p] = NewTreeNode()
-							if err := n.Children[p].PutValue(nil, h.Bytes()); err != nil {
+							if err := n.Children[p].PutValue(adapter, nil, h.Bytes()); err != nil {
 								return err
 							}
 						} else {
-							if err := n.Children[p].PutValue(nil, h.Bytes()); err != nil {
+							if err := n.Children[p].PutValue(adapter, nil, h.Bytes()); err != nil {
 								return err
 							}
 						}
@@ -1089,7 +1098,7 @@ func (n *TreeNode) MergeProof(index int, value []byte, child *TreeNode, proof *c
 				}
 			} else {
 				// the middle layer node of merkle tree
-				if err := n.PutValue(bs, h.Bytes()); err != nil {
+				if err := n.PutValue(adapter, bs, h.Bytes()); err != nil {
 					return err
 				}
 			}
@@ -1497,7 +1506,7 @@ func (n *TreeNode) Serialization(w io.Writer) error {
 	return err
 }
 
-func (n *TreeNode) decodeDescendants(vr rtl.ValueReader) (err error) {
+func (n *TreeNode) decodeDescendants(adapter db.DataAdapter, vr rtl.ValueReader) (err error) {
 	var hashslice [childrenLength][]byte
 	err = rtl.Decode(vr, &hashslice)
 	if err != nil {
@@ -1511,7 +1520,7 @@ func (n *TreeNode) decodeDescendants(vr rtl.ValueReader) (err error) {
 				n.Children[i] = nil
 			} else {
 				n.Children[i] = NewTreeNode()
-				if err = n.Children[i].PutValue([]byte(""), hashslice[i]); err != nil {
+				if err = n.Children[i].PutValue(adapter, []byte(""), hashslice[i]); err != nil {
 					return err
 				}
 			}
@@ -1548,6 +1557,6 @@ func (n *TreeNode) Deserialization(r io.Reader) (shouldBeNil bool, err error) {
 		return
 	}
 
-	err = n.decodeDescendants(vr)
+	err = n.decodeDescendants(nil, vr)
 	return
 }

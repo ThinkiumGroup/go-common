@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/ThinkiumGroup/go-common"
 )
@@ -270,6 +271,24 @@ func (n *NodeProof) String() string {
 	}
 }
 
+func (n *NodeProof) InfoString(level common.IndentLevel) string {
+	if n == nil {
+		return "NP<nil>"
+	}
+	base := level.IndentString()
+	return fmt.Sprintf("NP{"+
+		"\n%s\tPTYPE: %s"+
+		"\n%s\tHeader: %s"+
+		"\n%s\tValue: %x"+
+		"\n%s\tChildren: %s"+
+		"\n%s}",
+		base, n.PType,
+		base, n.Header,
+		base, common.ForPrint(n.ValueHash, 0),
+		base, n.ChildProofs.InfoString(level+1),
+		base)
+}
+
 // Calculate the proof value of a value or child node represented by toBeProof by passing through
 // current proofing node
 // If PType.IsProofChild(): Hash(Hash(Hash(Header), ValueHash), ChildProofs.Proof(toBeProof))
@@ -298,8 +317,6 @@ func (n *NodeProof) Proof(toBeProof common.Hash) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// fmt.Printf("NodeProof proof with: %x\n", toBeProof[:])
 
 	var left []byte
 	if n.PType.IsProofChild() {
@@ -637,6 +654,19 @@ func (c ProofChain) Key() (uint64, bool) {
 		h = o
 	}
 	return h, true
+}
+
+func (c ProofChain) BigKey() *big.Int {
+	key := big.NewInt(0)
+	pos := 0
+	for _, np := range c {
+		pos = np.ChildProofs.BigKey(key, pos)
+	}
+	return key
+}
+
+func (c ProofChain) InfoString(level common.IndentLevel) string {
+	return level.InfoString(c)
 }
 
 // evidence for something

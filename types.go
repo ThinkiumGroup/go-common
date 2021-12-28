@@ -50,6 +50,7 @@ var (
 	ErrNeedInitialization  = errors.New("need initialization")
 	ErrNotStarted          = errors.New("not started yet")
 	ErrIllegalStatus       = errors.New("illegal status")
+	ErrNoAdapter           = errors.New("no adapter")
 	ErrInsufficientLength  = errors.New("insufficient length")
 	ErrLength              = errors.New("length error")
 	ErrNil                 = errors.New("nil value")
@@ -351,7 +352,6 @@ func (l IndentLevel) InfoString(o interface{}) string {
 	case reflect.Array, reflect.Slice:
 		indent := l.IndentString()
 		if kind == reflect.Slice && v.IsNil() {
-			// return fmt.Sprintf("%s<nil>", indent)
 			return "<nil>"
 		}
 		next := l + 1
