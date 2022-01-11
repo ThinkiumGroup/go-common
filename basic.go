@@ -387,6 +387,10 @@ func (nid NodeID) String() string {
 	}
 }
 
+func (nid NodeID) InfoString(_ IndentLevel) string {
+	return hex.EncodeToString(nid[:])
+}
+
 func (nid *NodeID) Clone() *NodeID {
 	if nid == nil {
 		return nil
@@ -567,6 +571,10 @@ func (ns NodeIDs) Remove(os NodeIDs) NodeIDs {
 		r = append(r, k)
 	}
 	return r
+}
+
+func (ns NodeIDs) InfoString(level IndentLevel) string {
+	return level.InfoString(ns)
 }
 
 func NewNodeIDSet(ids ...*NodeID) *NodeIDSet {
