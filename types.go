@@ -321,6 +321,8 @@ func InfoStringer(v reflect.Value, level IndentLevel) string {
 	}
 	o := v.Interface()
 	switch obj := o.(type) {
+	case string:
+		return obj
 	case Infoer:
 		return obj.InfoString(level)
 	case fmt.Stringer:
@@ -328,6 +330,23 @@ func InfoStringer(v reflect.Value, level IndentLevel) string {
 	default:
 		return "UKN"
 	}
+}
+
+func BytesInfoString(level IndentLevel, bss [][]byte) string {
+	base := level.IndentString()
+	nextIndent := (level + 1).IndentString()
+	buf := new(bytes.Buffer)
+	buf.WriteByte('[')
+	if len(bss) > 0 {
+		for i := 0; i < len(bss); i++ {
+			one := bss[i]
+			buf.WriteString(fmt.Sprintf("\n%s%x,", nextIndent, one))
+		}
+		buf.WriteByte('\n')
+		buf.WriteString(base)
+	}
+	buf.WriteByte(']')
+	return buf.String()
 }
 
 type IndentLevel int
