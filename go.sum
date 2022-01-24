@@ -1,5 +1,5 @@
-github.com/ThinkiumGroup/go-cipher v1.0.203 h1:XNJAwfSynM30BPZU4qZcRzLp465GK40SYi/JnZPsRAw=
-github.com/ThinkiumGroup/go-cipher v1.0.203/go.mod h1:StQLwhaU/GAGX9o8GoLxWlUT/HNiCVNhY1TQTvvZ95M=
+github.com/ThinkiumGroup/go-cipher v1.0.204 h1:eXrE1QOL/zLo/vHoGHegHedl2ngYIkXFjj+M2fsVLw8=
+github.com/ThinkiumGroup/go-cipher v1.0.204/go.mod h1:StQLwhaU/GAGX9o8GoLxWlUT/HNiCVNhY1TQTvvZ95M=
 github.com/ThinkiumGroup/go-ecrypto v1.2.4 h1:+V61sNs6VtHUeQAq82+PL8l0BffOQLLAgdluJbfUN1c=
 github.com/ThinkiumGroup/go-ecrypto v1.2.4/go.mod h1:LyETut4AaL1viEouw67FQXuObFsKuj0FkBLi8Ct+a/Y=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

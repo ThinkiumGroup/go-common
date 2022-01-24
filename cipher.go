@@ -26,11 +26,15 @@ import (
 )
 
 var (
-	RealCipher    cipher.Cipher        = cipher.NewCipher(cipher.SECP256K1SHA3)
+	RealCipher    = cipher.NewCipher(cipher.SECP256K1SHA3)
 	SystemPrivKey cipher.ECCPrivateKey // private key of current node
 
 	ErrSignatureVerifyFailed = errors.New("signature verify failed")
 )
+
+func PubKeyCanRecover() bool {
+	return RealCipher.Name() == cipher.SECP256K1SHA3
+}
 
 func PrivateToPublicSlice(priv []byte) ([]byte, error) {
 	eccpriv, err := RealCipher.BytesToPriv(priv)
@@ -66,38 +70,56 @@ func SignHash(hash []byte) (pub, sig []byte, err error) {
 	return pub, sig, err
 }
 
-// verify msg signature
-func VerifyMsg(v interface{}, pub, sig []byte) bool {
+func VerifyMsgWithPub(v interface{}, pub, sig []byte) (bool, []byte) {
 	if sig == nil {
-		return false
+		return false, pub
 	}
 	mh, err := HashObject(v)
 	if err != nil {
 		log.Errorf("verify msg %v", err)
-		return false
+		return false, pub
 	}
-	//if pub == nil {
-	//	// pub = RealCipher.PubFromSignature(mh, sig)
-	//	log.Error("missing public key")
-	//	return false
-	//}
 	if pub == nil {
-		return false
+		if PubKeyCanRecover() {
+			pub, err = RealCipher.RecoverPub(mh, sig)
+			if err != nil || pub == nil {
+				return false, nil
+			}
+		} else {
+			return false, nil
+		}
 	}
-	return RealCipher.Verify(pub, mh, sig)
+	return RealCipher.Verify(pub, mh, sig), pub
+}
+
+// verify msg signature
+func VerifyMsg(v interface{}, pub, sig []byte) bool {
+	ok, _ := VerifyMsgWithPub(v, pub, sig)
+	return ok
+}
+
+func VerifyHashWithPub(hash, pub, sig []byte) (bool, []byte) {
+	if sig == nil || hash == nil {
+		return false, nil
+	}
+	if pub == nil {
+		if PubKeyCanRecover() {
+			p, err := RealCipher.RecoverPub(hash[:], sig)
+			if err != nil || p == nil {
+				return false, nil
+			}
+			pub = p
+		} else {
+			return false, nil
+		}
+	}
+	return RealCipher.Verify(pub, hash, sig), pub
 }
 
 // VerifyHash verify msg hash signature
 func VerifyHash(hash, pub, sig []byte) bool {
-	if sig == nil || hash == nil {
-		return false
-	}
-	if pub == nil {
-		// pub = RealCipher.PubFromSignature(hash, sig)
-		log.Error("missing public key")
-		return false
-	}
-	return RealCipher.Verify(pub, hash, sig)
+	ok, _ := VerifyHashWithPub(hash, pub, sig)
+	return ok
 }
 
 func HexToPrivKey(h string) (cipher.ECCPrivateKey, error) {
