@@ -185,13 +185,31 @@ type (
 		HaveSecondCoin bool         // not in use, but should be !SecondCoinId.IsSovereign()
 		AdminPubs      [][]byte     // Administrators' public key list
 		GenesisCommIds NodeIDs      // Members of the genesis committee (orderly, only the genesis chain has a genesis committee, and the first committees of other chains are elected through the creation process)
-		BootNodes      []Dataserver // BootNodes informations
+		BootNodes      []Dataserver // BootNodes information
 		Election       ElectionType // The election type of chain consensus committee
 		ChainVersion   string       // not in use
 		Syncblock      bool         // not in use
 		GenesisDatas   NodeIDs      // Genesis data nodes
 		Datas          NodeIDs      `json:"datanodes"` // Current data nodes, including all the genesis data nodes
 		Attributes     ChainAttrs   // chain attributes
+		Version        uint16       // version, 1: add Version and Auditors
+		Auditors       NodeIDs      // auditor ids (Auditors+GenesisDatas+Datas=AllAuditors)
+	}
+
+	chainInfosV0 struct {
+		ChainStruct
+		SecondCoinId   CoinID
+		SecondCoinName string
+		HaveSecondCoin bool
+		AdminPubs      [][]byte
+		GenesisCommIds NodeIDs
+		BootNodes      []Dataserver
+		Election       ElectionType
+		ChainVersion   string
+		Syncblock      bool
+		GenesisDatas   NodeIDs
+		Datas          NodeIDs
+		Attributes     ChainAttrs
 	}
 
 	NetType byte
@@ -823,6 +841,33 @@ func (c *ChainInfos) HasDataNode(nid NodeID) bool {
 		return true
 	}
 	return false
+}
+
+func (c *ChainInfos) HashValue() ([]byte, error) {
+	if c != nil {
+		return EncodeAndHash(c)
+	}
+	switch c.Version {
+	case 0:
+		old := &chainInfosV0{
+			ChainStruct:    c.ChainStruct,
+			SecondCoinId:   c.SecondCoinId,
+			SecondCoinName: c.SecondCoinName,
+			HaveSecondCoin: c.HaveSecondCoin,
+			AdminPubs:      c.AdminPubs,
+			GenesisCommIds: c.GenesisCommIds,
+			BootNodes:      c.BootNodes,
+			Election:       c.Election,
+			ChainVersion:   c.ChainVersion,
+			Syncblock:      c.Syncblock,
+			GenesisDatas:   c.GenesisDatas,
+			Datas:          c.Datas,
+			Attributes:     c.Attributes,
+		}
+		return EncodeAndHash(old)
+	default:
+		return EncodeAndHash(c)
+	}
 }
 
 func (n NetType) String() string {
