@@ -796,6 +796,35 @@ func (c *ChainInfos) GetDataNodes() []NodeID {
 	return []NodeID(c.Datas)
 }
 
+func (c *ChainInfos) GetAuditorMap() map[NodeID]struct{} {
+	if c == nil {
+		return nil
+	}
+	dedup := make(map[NodeID]struct{})
+	for _, nid := range c.GenesisDatas {
+		dedup[nid] = struct{}{}
+	}
+	for _, nid := range c.Datas {
+		dedup[nid] = struct{}{}
+	}
+	for _, nid := range c.Auditors {
+		dedup[nid] = struct{}{}
+	}
+	return dedup
+}
+
+func (c *ChainInfos) GetAuditorIds() NodeIDs {
+	dedup := c.GetAuditorMap()
+	var nids NodeIDs
+	for nid := range dedup {
+		nids = append(nids, nid)
+	}
+	if len(nids) > 1 {
+		sort.Sort(nids)
+	}
+	return nids
+}
+
 func (c *ChainInfos) Sort() {
 	if c == nil {
 		return
@@ -819,6 +848,9 @@ func (c *ChainInfos) Sort() {
 	}
 	if len(c.Attributes) > 1 {
 		sort.Sort(c.Attributes)
+	}
+	if len(c.Auditors) > 1 {
+		sort.Sort(c.Auditors)
 	}
 }
 
