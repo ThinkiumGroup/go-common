@@ -115,6 +115,8 @@ var (
 
 	KPStorageEntry = []byte("se")
 
+	KPAuditorMsgs = []byte("aq")
+
 	ErrNotFound = errors.New("data not found")
 	ErrReadOnly = errors.New("read only database")
 )
