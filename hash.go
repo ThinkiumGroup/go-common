@@ -450,6 +450,23 @@ func MerkleHashComplete(hashList [][]byte, toBeProof int, proofs *MerkleProofs) 
 	return hashList[0], nil
 }
 
+func ValuesMerkleHash(values interface{}, toBeProof int, proofs *MerkleProofs) (rootHash []byte, err error) {
+	val := reflect.ValueOf(values)
+	typ := val.Type()
+	if typ.Kind() != reflect.Slice {
+		return nil, ErrUnsupported
+	}
+	var hashList [][]byte
+	for i := 0; i < val.Len(); i++ {
+		h, err := HashObject(val.Index(i).Interface())
+		if err != nil {
+			return nil, err
+		}
+		hashList = append(hashList, h)
+	}
+	return MerkleHash(hashList, toBeProof, proofs)
+}
+
 // depth: If it is a positive number, it is the depth of the specified merkle tree. At this time,
 // if the number of leaves of the complete binary tree specified by the depth is greater than
 // len(hashList), at most one NilHashSlice is supplemented per layer

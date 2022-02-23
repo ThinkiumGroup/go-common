@@ -350,9 +350,9 @@ func (n *NodeProof) Iterate(hashCallback func(val []byte, order bool) error) err
 		if n.ValueHash == nil {
 			return errors.New("proof hds missing valueHash")
 		}
-		if n.ChildProofs == nil || len(n.ChildProofs.Hashs) == 0 {
-			return errors.New("proof hds missing child proofs")
-		}
+		// if n.ChildProofs == nil || len(n.ChildProofs.Hashs) == 0 {
+		// 	return errors.New("proof hds missing child proofs")
+		// }
 		if err := hashCallback(n.ValueHash[:], true); err != nil {
 			return fmt.Errorf("proof hds valueHash failed: %v", err)
 		}

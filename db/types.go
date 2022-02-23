@@ -99,7 +99,7 @@ var (
 	KPRewardHeightCursor = []byte("cf")
 
 	// prefix+ChainID -> the latest (block height + block Hash) has been reported
-	KPChainReportCursor = []byte("cc")
+	KPLastConfirmedCursor = []byte("cc")
 
 	KPRewardBase = []byte("rb")
 
@@ -230,8 +230,8 @@ func ToFirstRewardCursorKey() []byte {
 	return KPRewardHeightCursor
 }
 
-func ToChainReportCursorKey(chainId common.ChainID) []byte {
-	return PrefixKey(KPChainReportCursor, chainId.Formalize())
+func ToLastConfirmedCursorKey(chainId common.ChainID) []byte {
+	return PrefixKey(KPLastConfirmedCursor, chainId.Formalize())
 }
 
 func ToRewardBaseKey(chainId common.ChainID) []byte {
