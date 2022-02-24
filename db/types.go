@@ -90,10 +90,15 @@ var (
 	KPChainValue = []byte("ci")
 	// prefix + ChainId + EpochNum -> Committee
 	KPChainEpochCommittee = []byte("ce")
-	// prefix + ChainId + Height -> Header
-	KPChainHeightHeader = []byte("ch")
-	// prefix + ChainId + Height -> BlockProof
-	KPChainHeightProof = []byte("cp")
+	// // prefix + ChainId + Height -> Header
+	// KPChainHeightHeader = []byte("ch")
+	// // prefix + ChainId + Height -> BlockProof
+	// KPChainHeightProof = []byte("cp")
+
+	// prefix + X.ChainID + X.Height -> {KPConfirmedHdsByParentInfo + parent.ChainID + parent.Height}|(parent.Hds ⊇ X.Height)
+	KPConfirmedHdsByParentCursor = []byte("ch")
+	// prefix + X.ChainID + X.Height -> {block.Header, block.body.Hds}|(block.ChainID==X.ChainID, block.Height==X.Height)
+	KPConfirmedHdsByParentInfo = []byte("cp")
 	// the earliest Cursor on the main chain received by the current node and has not yet
 	// issued a reward, the reward can be issue from this height to process the Request
 	KPRewardHeightCursor = []byte("cf")
@@ -218,13 +223,14 @@ func ToEpochCommIndexKey(epoch common.EpochNum) []byte {
 	return PrefixKey(KPEpochCommIndex, epoch.Bytes())
 }
 
-func ToChainHeightHeaderKey(chainId common.ChainID, height common.Height) []byte {
-	return PrefixKey2(KPChainHeightHeader, chainId.Formalize(), height.Bytes())
-}
-
-func ToChainHeightProofKey(chainId common.ChainID, height common.Height) []byte {
-	return PrefixKey2(KPChainHeightProof, chainId.Formalize(), height.Bytes())
-}
+//
+// func ToChainHeightHeaderKey(chainId common.ChainID, height common.Height) []byte {
+// 	return PrefixKey2(KPChainHeightHeader, chainId.Formalize(), height.Bytes())
+// }
+//
+// func ToChainHeightProofKey(chainId common.ChainID, height common.Height) []byte {
+// 	return PrefixKey2(KPChainHeightProof, chainId.Formalize(), height.Bytes())
+// }
 
 func ToFirstRewardCursorKey() []byte {
 	return KPRewardHeightCursor
