@@ -119,19 +119,39 @@ func (p *MerkleProofs) Order(i int) bool {
 	}
 }
 
+func (p *MerkleProofs) Iterate(hashCallback func(val []byte, order bool) error) error {
+	if p == nil {
+		return nil
+	}
+	for i := 0; i < len(p.Hashs); i++ {
+		if err := hashCallback(p.Hashs[i][:], p.Order(i)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // According to the input, calculate the hash according to the proof, and return the result.
 // If the proof is empty, the input is returned
 func (p *MerkleProofs) Proof(toBeProof Hash) ([]byte, error) {
 	h := toBeProof[:]
-	if p != nil {
-		for i := 0; i < len(p.Hashs); i++ {
-			if p.Order(i) {
-				h = HashPair(p.Hashs[i][:], h)
-			} else {
-				h = HashPair(h, p.Hashs[i][:])
-			}
-		}
+	callback := func(val []byte, order bool) error {
+		var err error
+		h, err = HashPairOrder(order, val, h)
+		return err
 	}
+	if errr := p.Iterate(callback); errr != nil {
+		return nil, errr
+	}
+	// if p != nil {
+	// 	for i := 0; i < len(p.Hashs); i++ {
+	// 		if p.Order(i) {
+	// 			h = HashPair(p.Hashs[i][:], h)
+	// 		} else {
+	// 			h = HashPair(h, p.Hashs[i][:])
+	// 		}
+	// 	}
+	// }
 	return h, nil
 }
 
@@ -488,6 +508,14 @@ func HashPair(a []byte, b []byte) []byte {
 	}
 	// fmt.Printf("Hash(%x, %x) = %x\n", a[:5], b[:5], result[:5])
 	return result
+}
+
+func HashPairOrder(order bool, a, b []byte) ([]byte, error) {
+	if order {
+		return Hash256s(a, b)
+	} else {
+		return Hash256s(b, a)
+	}
 }
 
 func IsNilHash(bs []byte) bool {

@@ -186,7 +186,6 @@ func (h NodeHeader) HasChildren() bool {
 }
 
 func (h *NodeHeader) HashValue() ([]byte, error) {
-	// return common.HashObject(h)
 	return common.EncodeAndHash(h)
 }
 
@@ -846,8 +845,8 @@ func (n *node) computeHash(ptype ProofType, proofs *ProofChain) ([]byte, error) 
 
 	if !(ptype.IsProofChild() || ptype.IsProofValue() || ptype.IsProofExistence()) {
 		// node can only generate tree related proofs
-		panic(fmt.Sprintf("not support %s in node", ptype))
-		// return nil, ErrMismatchProof
+		// panic(fmt.Sprintf("not support %s in node", ptype))
+		return nil, fmt.Errorf("not support %s in node", ptype)
 	}
 
 	nodehasher := new(NodeHasher)

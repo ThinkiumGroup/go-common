@@ -289,6 +289,100 @@ func (n *NodeProof) InfoString(level common.IndentLevel) string {
 		base)
 }
 
+// iterate all hash values in the current NodeProof
+func (n *NodeProof) Iterate(hashCallback func(val []byte, order bool) error) error {
+	if n == nil {
+		return common.ErrNil
+	}
+
+	if n.PType.IsProofMerkleOnly() {
+		// standard proof of a merkle tree
+		if err := n.ChildProofs.Iterate(hashCallback); err != nil {
+			return fmt.Errorf("proof merkle failed: %v", err)
+		}
+		return nil
+	}
+
+	var left []byte
+	if n.PType.IsProofChild() {
+		// proof child node
+		headerHash, err := n.Header.HashValue()
+		if err != nil {
+			return fmt.Errorf("header hash failed: %v", err)
+		}
+
+		valueHash := common.NilHashSlice
+		if n.ValueHash != nil {
+			valueHash = n.ValueHash[:]
+		}
+		left = common.HashPair(headerHash, valueHash)
+		if n.ChildProofs != nil {
+			if err := n.ChildProofs.Iterate(hashCallback); err != nil {
+				return fmt.Errorf("proof child childProofs failed: %v", err)
+			}
+		}
+		if err := hashCallback(left, true); err != nil {
+			return fmt.Errorf("proof child headerHash+valueHash failed: %v", err)
+		}
+	} else if n.PType.IsProofValue() {
+		// proof value of the node
+		headerHash, err := n.Header.HashValue()
+		if err != nil {
+			return fmt.Errorf("header hash failed: %v", err)
+		}
+
+		if err := hashCallback(headerHash, true); err != nil {
+			return fmt.Errorf("proof value headerHash failed: %v", err)
+		}
+		if n.ChildProofs != nil {
+			if len(n.ChildProofs.Hashs) == 0 {
+				// if there is no value, which can be explained by Header, it will not perform hashing
+			} else if len(n.ChildProofs.Hashs) == 1 {
+				if err := hashCallback(n.ChildProofs.Hashs[0][:], false); err != nil {
+					return fmt.Errorf("proof value childProofs failed: %v", err)
+				}
+			} else {
+				return errors.New("only 1 hash most promitted in ChildProofs when proof the value of the node")
+			}
+		}
+	} else if n.PType.IsProofHdsSummary() {
+		// It has the same structure and algorithm as block proof
+		if n.ValueHash == nil {
+			return errors.New("proof hds missing valueHash")
+		}
+		if n.ChildProofs == nil || len(n.ChildProofs.Hashs) == 0 {
+			return errors.New("proof hds missing child proofs")
+		}
+		if err := hashCallback(n.ValueHash[:], true); err != nil {
+			return fmt.Errorf("proof hds valueHash failed: %v", err)
+		}
+		if err := n.ChildProofs.Iterate(hashCallback); err != nil {
+			return fmt.Errorf("proof hds childProofs failed: %v", err)
+		}
+	} else if _, ok := n.PType.IsProofHeaderProperty(); ok {
+		// To proof fields in BlockHeader
+		if n.ValueHash == nil {
+			return errors.New("proof header missing valueHash")
+		}
+		if n.ChildProofs == nil || len(n.ChildProofs.Hashs) == 0 {
+			return errors.New("proof header missing child proofs")
+		}
+		if err := hashCallback(n.ValueHash[:], true); err != nil {
+			return fmt.Errorf("proof header valueHash failed: %v", err)
+		}
+		if err := n.ChildProofs.Iterate(hashCallback); err != nil {
+			return fmt.Errorf("proof header childProofs failed: %v", err)
+		}
+	} else {
+		// n.PType.IsProofExsitence()
+		// To prove the existence, the current node is used to prove the existence and cannot
+		// be used to prove the value
+		return ErrMismatchProof
+	}
+
+	return nil
+}
+
 // Calculate the proof value of a value or child node represented by toBeProof by passing through
 // current proofing node
 // If PType.IsProofChild(): Hash(Hash(Hash(Header), ValueHash), ChildProofs.Proof(toBeProof))
@@ -308,78 +402,91 @@ func (n *NodeProof) Proof(toBeProof common.Hash) ([]byte, error) {
 		return nil, common.ErrNil
 	}
 
-	if n.PType.IsProofMerkleOnly() {
-		// standard proof of a merkle tree
-		return n.ChildProofs.Proof(toBeProof)
-	}
-
-	headerHash, err := n.Header.HashValue()
-	if err != nil {
+	result := toBeProof[:]
+	if err := n.Iterate(func(val []byte, order bool) error {
+		var errr error
+		result, errr = common.HashPairOrder(order, val, result)
+		return errr
+	}); err != nil {
 		return nil, err
 	}
-
-	var left []byte
-	if n.PType.IsProofChild() {
-		// proof child node
-		valueHash := common.NilHashSlice
-		if n.ValueHash != nil {
-			valueHash = n.ValueHash[:]
-		}
-		left = common.HashPair(headerHash, valueHash)
-		right := toBeProof[:]
-		if n.ChildProofs != nil {
-			right, err = n.ChildProofs.Proof(toBeProof)
-			if err != nil {
-				return nil, err
-			}
-		}
-		left = common.HashPair(left, right)
-	} else if n.PType.IsProofValue() {
-		// proof value of the node
-		left = common.HashPair(headerHash, toBeProof[:])
-		if n.ChildProofs != nil {
-			if len(n.ChildProofs.Hashs) == 0 {
-				// if there is no value, which can be explained by Header, it will not perform hashing
-			} else if len(n.ChildProofs.Hashs) == 1 {
-				left = common.HashPair(left, n.ChildProofs.Hashs[0][:])
-			} else {
-				return nil, errors.New("only 1 hash most promitted in ChildProofs when proof the value of the node")
-			}
-		}
-	} else if n.PType.IsProofHdsSummary() {
-		// It has the same structure and algorithm as block proof
-		if n.ValueHash == nil {
-			return nil, ErrMissingValue
-		}
-		if n.ChildProofs == nil || len(n.ChildProofs.Hashs) == 0 {
-			return nil, ErrMissingChild
-		}
-		left = common.HashPair(n.ValueHash[:], toBeProof[:])
-		left, err = n.ChildProofs.Proof(common.BytesToHash(left))
-		if err != nil {
-			return nil, err
-		}
-	} else if _, ok := n.PType.IsProofHeaderProperty(); ok {
-		// To proof fields in BlockHeader
-		if n.ValueHash == nil {
-			return nil, ErrMissingValue
-		}
-		if n.ChildProofs == nil || len(n.ChildProofs.Hashs) == 0 {
-			return nil, ErrMissingChild
-		}
-		left = common.HashPair(n.ValueHash[:], toBeProof[:])
-		left, err = n.ChildProofs.Proof(common.BytesToHash(left))
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// n.PType.IsProofExsitence()
-		// To prove the existence, the current node is used to prove the existence and cannot
-		// be used to prove the value
-		return nil, ErrMismatchProof
-	}
-
-	return left, nil
+	return result, nil
+	// if n.PType.IsProofMerkleOnly() {
+	// 	// standard proof of a merkle tree
+	// 	return n.ChildProofs.Proof(toBeProof)
+	// }
+	//
+	// var left []byte
+	// var err error
+	// if n.PType.IsProofChild() {
+	// 	// proof child node
+	// 	headerHash, err := n.Header.HashValue()
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	valueHash := common.NilHashSlice
+	// 	if n.ValueHash != nil {
+	// 		valueHash = n.ValueHash[:]
+	// 	}
+	// 	left = common.HashPair(headerHash, valueHash)
+	// 	right := toBeProof[:]
+	// 	if n.ChildProofs != nil {
+	// 		right, err = n.ChildProofs.Proof(toBeProof)
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	// 	}
+	// 	left = common.HashPair(left, right)
+	// } else if n.PType.IsProofValue() {
+	// 	// proof value of the node
+	// 	headerHash, err := n.Header.HashValue()
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	left = common.HashPair(headerHash, toBeProof[:])
+	// 	if n.ChildProofs != nil {
+	// 		if len(n.ChildProofs.Hashs) == 0 {
+	// 			// if there is no value, which can be explained by Header, it will not perform hashing
+	// 		} else if len(n.ChildProofs.Hashs) == 1 {
+	// 			left = common.HashPair(left, n.ChildProofs.Hashs[0][:])
+	// 		} else {
+	// 			return nil, errors.New("only 1 hash most promitted in ChildProofs when proof the value of the node")
+	// 		}
+	// 	}
+	// } else if n.PType.IsProofHdsSummary() {
+	// 	// It has the same structure and algorithm as block proof
+	// 	if n.ValueHash == nil {
+	// 		return nil, ErrMissingValue
+	// 	}
+	// 	if n.ChildProofs == nil || len(n.ChildProofs.Hashs) == 0 {
+	// 		return nil, ErrMissingChild
+	// 	}
+	// 	left = common.HashPair(n.ValueHash[:], toBeProof[:])
+	// 	left, err = n.ChildProofs.Proof(common.BytesToHash(left))
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// } else if _, ok := n.PType.IsProofHeaderProperty(); ok {
+	// 	// To proof fields in BlockHeader
+	// 	if n.ValueHash == nil {
+	// 		return nil, ErrMissingValue
+	// 	}
+	// 	if n.ChildProofs == nil || len(n.ChildProofs.Hashs) == 0 {
+	// 		return nil, ErrMissingChild
+	// 	}
+	// 	left = common.HashPair(n.ValueHash[:], toBeProof[:])
+	// 	left, err = n.ChildProofs.Proof(common.BytesToHash(left))
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// } else {
+	// 	// n.PType.IsProofExsitence()
+	// 	// To prove the existence, the current node is used to prove the existence and cannot
+	// 	// be used to prove the value
+	// 	return nil, ErrMismatchProof
+	// }
+	//
+	// return left, nil
 }
 
 // Compare the nibbles in keyprefix with the prefix of the current node and the index of the
@@ -482,7 +589,7 @@ func (n *NodeProof) ExistenceMatch(keyprefix []byte) (matched bool, valueHash *c
 
 func (n *NodeProof) ExistenceHash() ([]byte, error) {
 	if n.PType.IsProofExistence() == false {
-		panic(fmt.Sprintf("only ExistenceProof can Hash, but it's %s", n.PType))
+		return nil, fmt.Errorf("only ExistenceProof can Hash, but it's %s", n.PType)
 	}
 	headerHash, err := n.Header.HashValue()
 	if err != nil {
