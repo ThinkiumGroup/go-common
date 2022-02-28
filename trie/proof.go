@@ -727,16 +727,53 @@ func (c ProofChain) ExistenceHash() (rootHash []byte, err error) {
 // Calculate the hash value from toBeProof through the whole proof chain
 func (c ProofChain) Proof(toBeProof common.Hash) ([]byte, error) {
 	h := toBeProof[:]
-	input := toBeProof
-	var err error
-	for i := 0; i < len(c); i++ {
-		h, err = c[i].Proof(input)
-		if err != nil {
-			return nil, err
+	callback := func(val []byte, order bool) error {
+		var errr error
+		if h, errr = common.HashPairOrder(order, val, h); errr != nil {
+			return errr
 		}
-		input = common.BytesToHash(h)
+		return nil
 	}
+	if err := c.Iterate(callback); err != nil {
+		return nil, fmt.Errorf("proof failed: %v", err)
+	}
+	// input := toBeProof
+	// var err error
+	// for i := 0; i < len(c); i++ {
+	// 	h, err = c[i].Proof(input)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	input = common.BytesToHash(h)
+	// }
 	return h, nil
+}
+
+func (c ProofChain) Iterate(hashCallback func(val []byte, order bool) error) error {
+	for i, pc := range c {
+		if err := pc.Iterate(hashCallback); err != nil {
+			return fmt.Errorf("iterate at %d failed: %v", i, err)
+		}
+	}
+	return nil
+}
+
+func (c ProofChain) ToMerkles() (*common.MerkleProofs, error) {
+	if len(c) == 0 {
+		return nil, nil
+	}
+	mp := common.NewMerkleProofs()
+	callback := func(val []byte, order bool) error {
+		if len(val) != common.HashLength {
+			return errors.New("invalid hash value")
+		}
+		mp.Append(common.BytesToHash(val), order)
+		return nil
+	}
+	if err := c.Iterate(callback); err != nil {
+		return nil, fmt.Errorf("to merkles failed: %v", err)
+	}
+	return mp, nil
 }
 
 func (c ProofChain) Key() (uint64, bool) {
