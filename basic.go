@@ -842,7 +842,7 @@ func (h Height) Split() (epochNum EpochNum, blockNum BlockNum) {
 		return NilEpoch, NilBlock
 	}
 	epochNum = EpochNum(h) / BlocksInEpoch
-	blockNum = BlockNum(h) % BlocksInEpoch
+	blockNum = BlockNum(h % BlocksInEpoch)
 	return
 }
 
