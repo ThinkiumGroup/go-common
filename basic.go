@@ -723,6 +723,23 @@ func (en EpochNum) IsNil() bool {
 	return en == NilEpoch
 }
 
+func (en EpochNum) Diff(o EpochNum) (diff uint64, cmpRet int) {
+	if en == o {
+		return 0, 0
+	}
+	if en.IsNil() {
+		return math.MaxUint64, -1
+	}
+	if o.IsNil() {
+		return math.MaxUint64, 1
+	}
+	if en < o {
+		return uint64(o - en), -1
+	} else {
+		return uint64(en - o), 1
+	}
+}
+
 func (en EpochNum) Compare(o EpochNum) int {
 	if en == o {
 		return 0
@@ -787,6 +804,23 @@ func (h *Height) Equal(o *Height) bool {
 		return false
 	}
 	return *h == *o
+}
+
+func (h Height) Diff(o Height) (diff uint64, cmpRet int) {
+	if h == o {
+		return 0, 0
+	}
+	if h.IsNil() {
+		return math.MaxUint64, -1
+	}
+	if o.IsNil() {
+		return math.MaxUint64, 1
+	}
+	if h < o {
+		return uint64(o - h), -1
+	} else {
+		return uint64(h - o), 1
+	}
 }
 
 func (h Height) Compare(o Height) int {
