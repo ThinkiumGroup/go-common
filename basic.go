@@ -723,6 +723,23 @@ func (en EpochNum) IsNil() bool {
 	return en == NilEpoch
 }
 
+func (en EpochNum) Compare(o EpochNum) int {
+	if en == o {
+		return 0
+	}
+	if en.IsNil() {
+		return -1
+	}
+	if o.IsNil() {
+		return 1
+	}
+	if en < o {
+		return -1
+	} else {
+		return 1
+	}
+}
+
 func (en EpochNum) String() string {
 	if en.IsNil() {
 		return "<nil>"
