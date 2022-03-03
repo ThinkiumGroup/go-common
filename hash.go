@@ -367,7 +367,7 @@ func HashRipemd160(data []byte) []byte {
 	return md.Sum(data)
 }
 
-func ValuesMerkleTreeHash(values interface{}, toBeProof int, proofs *MerkleProofs) (rootHash []byte, err error) {
+func ValuesToHashs(values interface{}) ([][]byte, error) {
 	val := reflect.ValueOf(values)
 	typ := val.Type()
 	if typ.Kind() != reflect.Slice {
@@ -380,6 +380,14 @@ func ValuesMerkleTreeHash(values interface{}, toBeProof int, proofs *MerkleProof
 			return nil, err
 		}
 		hashList = append(hashList, h)
+	}
+	return hashList, nil
+}
+
+func ValuesMerkleTreeHash(values interface{}, toBeProof int, proofs *MerkleProofs) (rootHash []byte, err error) {
+	hashList, err := ValuesToHashs(values)
+	if err != nil {
+		return nil, err
 	}
 	return MerkleHashComplete(hashList, toBeProof, proofs)
 }
@@ -404,11 +412,6 @@ func MerkleHashComplete(hashList [][]byte, toBeProof int, proofs *MerkleProofs) 
 	}
 
 	var hh []byte
-
-	// if proofs != nil {
-	// 	fmt.Printf("making proof: %x, index:%d\n", hashList, toBeProof)
-	// 	defer fmt.Printf("MerkelProofs: %s\n", proofs)
-	// }
 
 	for max > 1 {
 		// Calculate the value of each layer of the balanced binary tree from bottom to top
