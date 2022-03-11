@@ -33,6 +33,7 @@ import (
 
 	"github.com/ThinkiumGroup/go-common/hexutil"
 	"github.com/ThinkiumGroup/go-common/log"
+	math2 "github.com/ThinkiumGroup/go-common/math"
 	"github.com/ThinkiumGroup/go-common/rlp"
 )
 
@@ -757,6 +758,21 @@ func (en EpochNum) Compare(o EpochNum) int {
 	}
 }
 
+func (en EpochNum) LastHeight() Height {
+	if en.IsNil() {
+		return NilHeight
+	}
+	r, overflow := math2.SafeMul(uint64(en), BlocksInEpoch)
+	if overflow {
+		return NilHeight
+	}
+	r, overflow = math2.SafeAdd(r, BlocksInEpoch-1)
+	if overflow {
+		return NilHeight
+	}
+	return Height(r)
+}
+
 func (en EpochNum) String() string {
 	if en.IsNil() {
 		return "<nil>"
@@ -895,6 +911,17 @@ func (h Height) Split() (epochNum EpochNum, blockNum BlockNum) {
 	epochNum = EpochNum(h) / BlocksInEpoch
 	blockNum = BlockNum(h % BlocksInEpoch)
 	return
+}
+
+func (h Height) RemoveRemainder(n Height) Height {
+	if n == 0 || n == 1 {
+		return h
+	}
+	if h.IsNil() {
+		return NilHeight
+	}
+	q := h / n
+	return q * n
 }
 
 func BytesToHeight(bs []byte) Height {
