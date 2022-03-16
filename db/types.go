@@ -95,18 +95,23 @@ var (
 	// // prefix + ChainId + Height -> BlockProof
 	// KPChainHeightProof = []byte("cp")
 
+	// save HDS in the parent block to current sub-chain database by the info of the parent block
 	// prefix + X.ChainID + X.Height -> {KPConfirmedHdsByParentInfo + parent.ChainID + parent.Height}|(parent.Hds ⊇ X.Height)
 	KPConfirmedHdsByParentCursor = []byte("ch")
 	// prefix + X.ChainID + X.Height -> {block.Header, block.body.Hds}|(block.ChainID==X.ChainID, block.Height==X.Height)
 	KPConfirmedHdsByParentInfo = []byte("cp")
+
+	// // prefix+ChainID -> the latest (block height + block Hash) of current chain has been reported
+	// KPLastReportedCursor = []byte("cc")
+	// prefix+ChainID -> the latest (block height + block Hash + comm Epoch) has been confirmed by parent chain
+	KPLastConfirmedCursor = []byte("cca")
+	// prefix+ChainID -> the latest (block height + block Hash + comm Epoch) of sub-chain confirmed by current chain
+	KPSubConfirmedCursor = []byte("ccb")
+
 	// the earliest Cursor on the main chain received by the current node and has not yet
 	// issued a reward, the reward can be issue from this height to process the Request
 	KPRewardHeightCursor = []byte("cf")
-
-	// prefix+ChainID -> the latest (block height + block Hash) has been reported
-	KPLastConfirmedCursor = []byte("cc")
-
-	KPRewardBase = []byte("rb")
+	KPRewardBase         = []byte("rb")
 
 	KPRRNode          = []byte("ra") // Required Reserve Trie Node Prefix
 	KPRRValue         = []byte("rc") // Required Reserve Trie Value Prefix

@@ -542,7 +542,7 @@ func (ids ChainIDs) Swap(i, j int) {
 }
 
 func (ids ChainIDs) Less(i, j int) bool {
-	return uint32(ids[i]) < uint32(ids[j])
+	return ids[i].Compare(ids[j]) < 0
 }
 
 func (ids ChainIDs) Clone() ChainIDs {
