@@ -798,7 +798,7 @@ func (bn BlockNum) IsNil() bool {
 
 // Is it the last block in an epoch
 func (bn BlockNum) IsLastOfEpoch() bool {
-	return (bn + 1) == BlocksInEpoch
+	return !bn.IsNil() && (bn+1) == BlocksInEpoch
 }
 
 func (bn BlockNum) String() string {
@@ -901,7 +901,7 @@ func (h Height) UsefulBlock() BlockNum {
 func (h Height) IsLastOfEpoch() bool {
 	// It is necessary to consider the special case that height is likely to be the maximum value
 	// of Uint64 in the genesis block
-	return ((h + 1) % BlocksInEpoch) == 0
+	return !h.IsNil() && ((h+1)%BlocksInEpoch) == 0
 }
 
 func (h Height) Split() (epochNum EpochNum, blockNum BlockNum) {

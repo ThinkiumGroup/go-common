@@ -125,6 +125,7 @@ var (
 
 	KPStorageEntry = []byte("se")
 
+	// prefix + ChainID + Height -> [{BlockHash, AuditPass}]
 	KPAuditorMsgs = []byte("aq")
 
 	ErrNotFound = errors.New("data not found")

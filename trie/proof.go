@@ -737,15 +737,6 @@ func (c ProofChain) Proof(toBeProof common.Hash) ([]byte, error) {
 	if err := c.Iterate(callback); err != nil {
 		return nil, fmt.Errorf("proof failed: %v", err)
 	}
-	// input := toBeProof
-	// var err error
-	// for i := 0; i < len(c); i++ {
-	// 	h, err = c[i].Proof(input)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	input = common.BytesToHash(h)
-	// }
 	return h, nil
 }
 
@@ -807,6 +798,31 @@ func (c ProofChain) BigKey() *big.Int {
 		pos = np.ChildProofs.BigKey(key, pos)
 	}
 	return key
+}
+
+func (c ProofChain) HistoryProof(height common.Height, hob []byte) ([]byte, error) {
+	if len(c) == 0 {
+		return nil, errors.New("nil history proof")
+	}
+	if height.IsNil() && len(hob) == 0 {
+		return nil, errors.New("nil height and hash")
+	}
+	if !height.IsNil() { // nil height for no height checking
+		// check height
+		bigint := c.BigKey()
+		bigheight := new(big.Int).SetUint64(uint64(height))
+		if bigint.Cmp(bigheight) != 0 {
+			return nil, fmt.Errorf("proof of Height:%s not %s", bigint, bigheight)
+		}
+	}
+	if len(hob) > 0 {
+		hisRoot, err := c.Proof(common.BytesToHash(hob))
+		if err != nil {
+			return nil, fmt.Errorf("history proof failed: %v", err)
+		}
+		return hisRoot, nil
+	}
+	return nil, nil
 }
 
 func (c ProofChain) InfoString(level common.IndentLevel) string {

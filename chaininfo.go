@@ -506,22 +506,6 @@ func (id ChainID) Formalize() []byte {
 	return id.Bytes()
 }
 
-//
-// func (id *ChainID) Serialization(w io.Writer) error {
-// 	_, err := w.Write(id.Bytes())
-// 	return err
-// }
-//
-// func (id *ChainID) Deserialization(r io.Reader) error {
-// 	buf := make([]byte, ChainBytesLength)
-// 	_, err := io.ReadFull(r, buf)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	*id = ChainID(binary.BigEndian.Uint32(buf))
-// 	return nil
-// }
-
 func (id ChainID) String() string {
 	if id.IsNil() {
 		return "<nil>"
