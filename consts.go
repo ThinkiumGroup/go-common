@@ -92,3 +92,9 @@ const (
 	SSStarted
 	SSStopped
 )
+
+const (
+	// 0: origin
+	// 1: add Version/Auditors/ConfirmedInfo
+	ChainInfoVersion = 1
+)
