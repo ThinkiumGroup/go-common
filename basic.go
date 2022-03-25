@@ -44,7 +44,6 @@ var (
 	EmptyAddress  = Address{}
 	SystemNodeID  NodeID // NodeID of current node, which is initialized from the configuration file when the system starts
 
-	NodeIDMap     = make(map[NodeID]int)
 	TxCount       uint64
 	NetDelay      []int                                       // range of system network delay [NetDelay[0]-NetDelay[1]]
 	WaitingTime   time.Duration                               // Waiting time for consensus state switching, waiting for other nodes
@@ -59,12 +58,6 @@ var (
 	FullData      bool
 	StandAlone    bool // if startup in standalone mode (one chain mode)
 )
-
-func InitNodeIDMap(nodeids []NodeID) {
-	for i := 0; i < len(nodeids); i++ {
-		NodeIDMap[nodeids[i]] = i
-	}
-}
 
 type (
 	NodeID   [NodeIDBytes]byte
@@ -380,12 +373,7 @@ func (nid NodeID) isZero() bool {
 }
 
 func (nid NodeID) String() string {
-	id, ok := NodeIDMap[nid]
-	if !ok {
-		return hex.EncodeToString(nid[:5])
-	} else {
-		return fmt.Sprintf("%x_%d", nid[:5], id)
-	}
+	return hex.EncodeToString(nid[:5])
 }
 
 func (nid NodeID) InfoString(_ IndentLevel) string {
@@ -483,7 +471,7 @@ func (ns NodeIDs) Less(i, j int) bool {
 	return bytes.Compare(ns[i][:], ns[j][:]) < 0
 }
 
-func (ns NodeIDs) Equals(os NodeIDs) bool {
+func (ns NodeIDs) Equal(os NodeIDs) bool {
 	if len(ns) == 0 && len(os) == 0 {
 		return true
 	}
@@ -687,7 +675,7 @@ func (e EraNum) IsNil() bool {
 	return e == NilEra
 }
 
-func (e *EraNum) Equals(o *EraNum) bool {
+func (e *EraNum) Equal(o *EraNum) bool {
 	if e == o {
 		return true
 	}
@@ -812,16 +800,6 @@ func (h Height) IsNil() bool {
 	return h == NilHeight
 }
 
-func (h *Height) Equal(o *Height) bool {
-	if h == o {
-		return true
-	}
-	if h == nil || o == nil {
-		return false
-	}
-	return *h == *o
-}
-
 func (h Height) Diff(o Height) (diff uint64, cmpRet int) {
 	if h == o {
 		return 0, 0
@@ -939,6 +917,16 @@ func ToHeight(epoch EpochNum, bn BlockNum) Height {
 		return NilHeight
 	}
 	return Height(uint64(epoch)*BlocksInEpoch + uint64(bn))
+}
+
+func (h *Height) Equal(o *Height) bool {
+	if h == o {
+		return true
+	}
+	if h == nil || o == nil {
+		return false
+	}
+	return *h == *o
 }
 
 func (h *Height) String() string {
@@ -1268,7 +1256,7 @@ func (h *Hash) SliceEqual(val []byte) bool {
 	return bytes.Equal(h[:], val)
 }
 
-func (h *Hash) Equals(v *Hash) bool {
+func (h *Hash) Equal(v *Hash) bool {
 	if h == v {
 		return true
 	}

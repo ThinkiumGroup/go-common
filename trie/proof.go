@@ -207,6 +207,19 @@ type NodeProof struct {
 	//								 				 // If PType==ProofValue, the value is to be proved. In the case, ChildProofs can has only one or zero hash value. If there is one hash value, the hash is the hash of the children part.
 }
 
+func (n *NodeProof) Equal(o *NodeProof) bool {
+	if n == o {
+		return true
+	}
+	if n == nil || o == nil {
+		return false
+	}
+	return n.PType == o.PType &&
+		n.Header.Equal(o.Header) &&
+		n.ValueHash.Equal(o.ValueHash) &&
+		n.ChildProofs.Equal(o.ChildProofs)
+}
+
 func (n *NodeProof) Clone() *NodeProof {
 	if n == nil {
 		return nil
@@ -645,6 +658,18 @@ func (n *NodeProof) IsHdsSummaryOf(chainId common.ChainID, height common.Height)
 
 // in the order of the proof tree from bottom to top
 type ProofChain []*NodeProof
+
+func (c ProofChain) Equal(o ProofChain) bool {
+	if len(c) != len(o) {
+		return false
+	}
+	for i := 0; i < len(c); i++ {
+		if c[i].Equal(o[i]) == false {
+			return false
+		}
+	}
+	return true
+}
 
 func (c ProofChain) Clone() ProofChain {
 	if c == nil {

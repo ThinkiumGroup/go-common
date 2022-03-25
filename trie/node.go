@@ -126,6 +126,10 @@ type NodeHeader struct {
 	ChildrenFlag ChildFlag `json:"childrenflag"`
 }
 
+func (h NodeHeader) Equal(o NodeHeader) bool {
+	return h.NT == o.NT && bytes.Equal(h.KeyString, o.KeyString) && h.ChildrenFlag == o.ChildrenFlag
+}
+
 func (h NodeHeader) Clone() NodeHeader {
 	return NodeHeader{
 		NT:           h.NT,

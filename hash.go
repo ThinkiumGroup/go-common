@@ -23,6 +23,7 @@ import (
 	"reflect"
 
 	"github.com/ThinkiumGroup/go-cipher"
+	"github.com/ThinkiumGroup/go-common/math"
 	"github.com/stephenfire/go-rtl"
 	"golang.org/x/crypto/ripemd160"
 )
@@ -45,6 +46,24 @@ func NewMerkleProofs() *MerkleProofs {
 	return &MerkleProofs{
 		Paths: new(big.Int),
 	}
+}
+
+func (p *MerkleProofs) Equal(o *MerkleProofs) bool {
+	if p == o {
+		return true
+	}
+	if p == nil || o == nil {
+		return false
+	}
+	if len(p.Hashs) != len(o.Hashs) {
+		return false
+	}
+	for i := 0; i < len(p.Hashs); i++ {
+		if p.Hashs[i] != o.Hashs[i] {
+			return false
+		}
+	}
+	return math.CompareBigInt(p.Paths, o.Paths) == 0
 }
 
 func (p *MerkleProofs) Clone() *MerkleProofs {
@@ -560,7 +579,7 @@ func HashEquals(h1, h2 *Hash) bool {
 	if (h1 == nil || h1.IsNil()) && (h2 == nil || h2.IsNil()) {
 		return true
 	}
-	if h1.Equals(h2) {
+	if h1.Equal(h2) {
 		return true
 	}
 	return false
