@@ -67,6 +67,9 @@ var (
 	EmptyHash    = Hash{}
 	NilHashSlice = []byte(nil)
 	NilHash      = BytesToHash(NilHashSlice)
+
+	EmptyNodeHashSlice []byte
+	EmptyNodeHash      Hash
 )
 
 func init() {

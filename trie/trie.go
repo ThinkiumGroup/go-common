@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"sync"
 
-	common "github.com/ThinkiumGroup/go-common"
+	"github.com/ThinkiumGroup/go-common"
 	"github.com/ThinkiumGroup/go-common/db"
 	"github.com/ThinkiumGroup/go-common/log"
 	"github.com/stephenfire/go-rtl"
@@ -33,14 +33,11 @@ const (
 	maxValLength = 4096
 )
 
-var (
-	EmptyNodeHashSlice []byte
-	EmptyNodeHash      common.Hash
-)
-
 func init() {
 	dbase := db.NewMemDB()
-	defer dbase.Close()
+	defer func() {
+		_ = dbase.Close()
+	}()
 
 	type aaa struct {
 		A int
@@ -50,12 +47,12 @@ func init() {
 	va := db.NewKeyPrefixedDataAdapter(dbase, []byte("2"))
 	t := NewTrieWithValueType(nil, na, va, reflect.TypeOf((*aaa)(nil)))
 	var err error
-	EmptyNodeHashSlice, err = t.HashValue()
+	common.EmptyNodeHashSlice, err = t.HashValue()
 	if err != nil {
 		panic(err)
 	}
-	EmptyNodeHash = common.BytesToHash(EmptyNodeHashSlice)
-	log.Debugf("trie.EmtpyNodeHash set to: %s", EmptyNodeHash)
+	common.EmptyNodeHash = common.BytesToHash(common.EmptyNodeHashSlice)
+	log.Debugf("trie.EmtpyNodeHash set to: %s", common.EmptyNodeHash)
 }
 
 type (
@@ -169,7 +166,7 @@ func (t *Trie) Clone() *Trie {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
-	t.commitLocked()
+	_ = t.commitLocked()
 	rootHash, _ := t.hashLocked()
 	return &Trie{
 		root: NewNodeWithFuncs(rootHash, t.gen, t.root.valueEncode,
@@ -644,9 +641,9 @@ func (t *Trie) expandNode(node *node) error {
 		// oldprefix := node.prefix
 		// node.setPrefix(nil)
 		// log.Warnf("[BUGFIX] remove prefix: %x, nodeHash set to empty", oldprefix)
-		node.hash = common.CopyBytes(EmptyNodeHashSlice)
+		node.hash = common.CopyBytes(common.EmptyNodeHashSlice)
 	}
-	t.expandNodeValue(node)
+	_ = t.expandNodeValue(node)
 
 	// t.lruCache.add(node,node)
 	// log.Debugf("expanded %s", node)
@@ -655,7 +652,7 @@ func (t *Trie) expandNode(node *node) error {
 
 func (t *Trie) expandNodeValue(node *node) error {
 	if node.isCollapsed() {
-		t.expandNode(node)
+		_ = t.expandNode(node)
 	}
 	if !node.isValueCollapsed() || t.valueAdapter == nil {
 		return nil
@@ -717,7 +714,7 @@ func (t *Trie) iterateSave(node *node) error {
 	// depth-first traversal
 	for i := 0; i < childrenLength; i++ {
 		if node.children[i] != nil {
-			t.iterateSave(node.children[i])
+			_ = t.iterateSave(node.children[i])
 		}
 	}
 	if node.isDirty() {
@@ -732,7 +729,7 @@ func (t *Trie) iterateSave(node *node) error {
 			}
 		} else {
 			if node.shouldCollapseValue(maxValLength) {
-				node.collapseValue()
+				_ = node.collapseValue()
 			}
 		}
 	}

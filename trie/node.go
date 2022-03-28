@@ -341,7 +341,7 @@ func (n *node) inErrorStatus() bool {
 }
 
 func isEmptyNodeHash(h []byte) bool {
-	return len(h) < common.HashLength || bytes.Compare(h, EmptyNodeHashSlice) == 0
+	return len(h) < common.HashLength || bytes.Compare(h, common.EmptyNodeHashSlice) == 0
 }
 
 func (n *node) isCollapsed() bool {
@@ -907,7 +907,7 @@ func (n *node) computeHash(ptype ProofType, proofs *ProofChain) ([]byte, error) 
 }
 
 func (n *node) canCollapse() bool {
-	return !n.isDirty() && bytes.Compare(n.hash, EmptyNodeHashSlice) != 0 && !n.isCollapsed()
+	return !n.isDirty() && bytes.Compare(n.hash, common.EmptyNodeHashSlice) != 0 && !n.isCollapsed()
 	// // Emptynodehashslice is the hash value of an empty node. The existence of a hash value
 	// // indicates that it has been folded
 	// return !n.isDirty() && !n.isCollapsed()

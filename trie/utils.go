@@ -221,5 +221,5 @@ func (p *BatchPutter) Count() int {
 }
 
 func IsEmptyTrieRoot(root []byte) bool {
-	return len(root) == 0 || bytes.Equal(root, EmptyNodeHashSlice)
+	return len(root) == 0 || bytes.Equal(root, common.EmptyNodeHashSlice)
 }

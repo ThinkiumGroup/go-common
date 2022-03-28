@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/ThinkiumGroup/go-common"
 	"github.com/ThinkiumGroup/go-common/db"
 	"github.com/ThinkiumGroup/go-common/hexutil"
 )
@@ -124,7 +125,7 @@ func _deleteAndCheckTrieValues(tr *Trie, valueMap map[string]*trieValue, vs []in
 		}
 	}
 	root, _ := tr.HashValue()
-	if !bytes.Equal(root, EmptyNodeHashSlice) {
+	if !bytes.Equal(root, common.EmptyNodeHashSlice) {
 		return fmt.Errorf("should be an empty trie, but root:%x", root)
 	}
 	return nil
@@ -132,12 +133,14 @@ func _deleteAndCheckTrieValues(tr *Trie, valueMap map[string]*trieValue, vs []in
 
 func TestAll(t *testing.T) {
 	dbase := db.NewMemDB()
-	defer dbase.Close()
+	defer func() {
+		_ = dbase.Close()
+	}()
 
 	tr := _testCreateTrie(nil, dbase)
 	rootHash, _ := tr.HashValue()
-	if !bytes.Equal(rootHash, EmptyNodeHashSlice) {
-		t.Fatalf("creating an empty trie with wrong root:%x, should be:%x", rootHash, EmptyNodeHashSlice)
+	if !bytes.Equal(rootHash, common.EmptyNodeHashSlice) {
+		t.Fatalf("creating an empty trie with wrong root:%x, should be:%x", rootHash, common.EmptyNodeHashSlice)
 	}
 
 	valueMap := make(map[string]*trieValue)
