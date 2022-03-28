@@ -105,8 +105,10 @@ var (
 	// KPLastReportedCursor = []byte("cc")
 	// prefix+ChainID -> the latest (block height + block Hash + comm Epoch) has been confirmed by parent chain
 	KPLastConfirmedCursor = []byte("cca")
-	// prefix+ChainID -> the latest (block height + block Hash + comm Epoch) of sub-chain confirmed by current chain
-	KPSubConfirmedCursor = []byte("ccb")
+
+	// prefix of Sub Confirmed Info Trie
+	KPSubConfirmedNode  = []byte("ca")
+	KPSubConfirmedValue = []byte("cb")
 
 	// the earliest Cursor on the main chain received by the current node and has not yet
 	// issued a reward, the reward can be issue from this height to process the Request
