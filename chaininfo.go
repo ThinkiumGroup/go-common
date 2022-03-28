@@ -180,21 +180,20 @@ type (
 	//  构中，在生成ShardInfo时产生效果。
 	ChainInfos struct {
 		ChainStruct    `json:"chain"`
-		SecondCoinId   CoinID         // ID of the local currency of this chain, 0 is the basic currency, indicating that the chain does not have a local currency
-		SecondCoinName string         // If there is a local currency, it is the display name of the currency, otherwise it is ""
-		HaveSecondCoin bool           // not in use, but should be !SecondCoinId.IsSovereign()
-		AdminPubs      [][]byte       // Administrators' public key list
-		GenesisCommIds NodeIDs        // Members of the genesis committee (orderly, only the genesis chain has a genesis committee, and the first committees of other chains are elected through the creation process)
-		BootNodes      []Dataserver   // BootNodes information
-		Election       ElectionType   // The election type of chain consensus committee
-		ChainVersion   string         // not in use
-		Syncblock      bool           // not in use
-		GenesisDatas   NodeIDs        // Genesis data nodes
-		Datas          NodeIDs        `json:"datanodes"` // Current data nodes, including all the genesis data nodes
-		Attributes     ChainAttrs     // chain attributes
-		Auditors       NodeIDs        // auditor ids (Auditors+GenesisDatas+Datas=AllAuditors)
-		Confirmed      *ConfirmedInfo // the last confirmed info by main chain
-		Version        uint16         // version, 1: add Version/Auditors/ConfirmedInfo
+		SecondCoinId   CoinID       // ID of the local currency of this chain, 0 is the basic currency, indicating that the chain does not have a local currency
+		SecondCoinName string       // If there is a local currency, it is the display name of the currency, otherwise it is ""
+		HaveSecondCoin bool         // not in use, but should be !SecondCoinId.IsSovereign()
+		AdminPubs      [][]byte     // Administrators' public key list
+		GenesisCommIds NodeIDs      // Members of the genesis committee (orderly, only the genesis chain has a genesis committee, and the first committees of other chains are elected through the creation process)
+		BootNodes      []Dataserver // BootNodes information
+		Election       ElectionType // The election type of chain consensus committee
+		ChainVersion   string       // not in use
+		Syncblock      bool         // not in use
+		GenesisDatas   NodeIDs      // Genesis data nodes
+		Datas          NodeIDs      `json:"datanodes"` // Current data nodes, including all the genesis data nodes
+		Attributes     ChainAttrs   // chain attributes
+		Auditors       NodeIDs      // auditor ids (Auditors+GenesisDatas+Datas=AllAuditors)
+		Version        uint16       // version, 1: add Version/Auditors
 	}
 
 	chainInfosV0 struct {
@@ -594,19 +593,6 @@ func (s ChainStruct) String() string {
 	return fmt.Sprintf("{ChainID:%d ParentID:%d Mode:%s}", s.ID, s.ParentID, s.Mode)
 }
 
-type ConfirmedInfo struct {
-	Height    Height   // last confirmed height
-	Hob       []byte   // last confirmed block hash
-	CommEpoch EpochNum // epoch of the last confirmed committee
-}
-
-func (c *ConfirmedInfo) String() string {
-	if c == nil {
-		return "Confirmed<nil>"
-	}
-	return fmt.Sprintf("Confirmed{Height:%s Hob:%x CommEpoch:%s}", &(c.Height), ForPrint(c.Hob), c.CommEpoch)
-}
-
 func (c *ChainInfos) Clone() *ChainInfos {
 	if c == nil {
 		return nil
@@ -632,6 +618,8 @@ func (c *ChainInfos) Clone() *ChainInfos {
 		GenesisDatas:   c.GenesisDatas.Clone(),
 		Datas:          c.Datas.Clone(),
 		Attributes:     c.Attributes.Clone(),
+		Auditors:       c.Auditors.Clone(),
+		Version:        c.Version,
 	}
 	return r
 }
@@ -856,8 +844,9 @@ func (c *ChainInfos) String() string {
 	if c == nil {
 		return "ChainInfo<nil>"
 	}
-	return fmt.Sprintf("ChainInfo{%s, Coin(%d-%s), Elect:%s, Attrs:%s, Datas:%s, Admins:%d}",
-		c.ChainStruct, c.SecondCoinId, c.SecondCoinName, c.Election, c.Attributes, c.Datas, len(c.AdminPubs))
+	return fmt.Sprintf("ChainInfo.%d{%s, Coin(%d-%s), Elect:%s, Attrs:%s, Datas:%s, Admins:%d, Auditors:%d}",
+		c.Version, c.ChainStruct, c.SecondCoinId, c.SecondCoinName, c.Election, c.Attributes, c.Datas,
+		len(c.AdminPubs), len(c.Auditors))
 }
 
 func (c *ChainInfos) HasDataNode(nid NodeID) bool {

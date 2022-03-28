@@ -95,6 +95,6 @@ const (
 
 const (
 	// 0: origin
-	// 1: add Version/Auditors/ConfirmedInfo
+	// 1: add Version/Auditors
 	ChainInfoVersion = 1
 )
