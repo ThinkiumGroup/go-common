@@ -675,6 +675,14 @@ func (e EraNum) IsNil() bool {
 	return e == NilEra
 }
 
+func (e *EraNum) Clone() *EraNum {
+	if e == nil {
+		return nil
+	}
+	o := *e
+	return &o
+}
+
 func (e *EraNum) Equal(o *EraNum) bool {
 	if e == o {
 		return true
@@ -683,6 +691,36 @@ func (e *EraNum) Equal(o *EraNum) bool {
 		return false
 	}
 	return *e == *o
+}
+
+func (e EraNum) Compare(o EraNum) int {
+	if e == o {
+		return 0
+	}
+	if e.IsNil() {
+		return -1
+	}
+	if o.IsNil() {
+		return 1
+	}
+	if e < o {
+		return -1
+	} else {
+		return 1
+	}
+}
+
+func (e *EraNum) Cmp(o *EraNum) int {
+	if e == o {
+		return 0
+	}
+	if e == nil {
+		return -1
+	}
+	if o == nil {
+		return 1
+	}
+	return (*e).Compare(*o)
 }
 
 func (e *EraNum) String() string {
@@ -917,6 +955,14 @@ func ToHeight(epoch EpochNum, bn BlockNum) Height {
 		return NilHeight
 	}
 	return Height(uint64(epoch)*BlocksInEpoch + uint64(bn))
+}
+
+func (h *Height) Clone() *Height {
+	if h == nil {
+		return nil
+	}
+	o := *h
+	return &o
 }
 
 func (h *Height) Equal(o *Height) bool {

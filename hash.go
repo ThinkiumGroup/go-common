@@ -564,6 +564,10 @@ func IsNilHash(bs []byte) bool {
 	return bytes.Equal(bs, NilHashSlice)
 }
 
+func InvalidHash(bs []byte) bool {
+	return len(bs) == 0 || bytes.Equal(bs, NilHashSlice) || bytes.Equal(bs, EmptyNodeHashSlice)
+}
+
 func HashSliceEquals(h1, h2 []byte) bool {
 	nh1, nh2 := IsNilHash(h1), IsNilHash(h2)
 	if nh1 && nh2 {

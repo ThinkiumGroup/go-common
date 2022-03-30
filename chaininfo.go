@@ -474,6 +474,10 @@ func (id ChainID) Bytes() []byte {
 	return buf
 }
 
+func (id ChainID) FromFormalize(bs []byte) ChainID {
+	return ChainID(binary.BigEndian.Uint32(bs))
+}
+
 func (id ChainID) Compare(o ChainID) int {
 	if id == o {
 		return 0
