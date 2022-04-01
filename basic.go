@@ -1209,6 +1209,14 @@ func (h Hash) IsEmpty() bool {
 	return h == EmptyHash
 }
 
+func (h Hash) IsEmptyNode() bool {
+	return h == EmptyNodeHash
+}
+
+func (h Hash) Invalid() bool {
+	return h == NilHash || h == EmptyNodeHash
+}
+
 func (h *Hash) Slice() []byte {
 	if h == nil {
 		return nil
