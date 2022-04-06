@@ -172,3 +172,21 @@ func TestHeight_Equal(t *testing.T) {
 		t.Fatalf("nil <> nil ?")
 	}
 }
+
+func TestEpochNum_LastHeight(t *testing.T) {
+	datas := []struct {
+		A EpochNum // epoch
+		B Height   // lastheight
+		C Height   // any height in epoch
+	}{{A: 0, B: 999, C: 938}, {A: 1, B: 1999, C: 1938}, {A: 2, B: 2999, C: 2000}}
+	for _, data := range datas {
+		h := data.C.EpochNum()
+		if h != data.A {
+			t.Fatalf("the epoch of Height:%d should be Epoch:%d but Epoch:%s", data.C, data.A, h)
+		}
+		b := data.A.LastHeight()
+		if b != data.B {
+			t.Fatalf("the LastHeight of Epoch:%s should be Height:%d but Height:%s", data.A, data.B, &b)
+		}
+	}
+}
