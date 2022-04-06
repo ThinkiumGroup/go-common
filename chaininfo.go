@@ -422,11 +422,11 @@ var (
 	}
 
 	netTypeNames = map[NetType]string{
-		BasicNet:      "BasicNet",
+		BasicNet:      "Basic",
 		ConsensusNet1: "CNet1",
 		ConsensusNet2: "CNet2",
-		RootDataNet:   "RootDataNet",
-		BranchDataNet: "BranchDataNet",
+		RootDataNet:   "RootData",
+		BranchDataNet: "BranchData",
 		// UnknownNet:    "UnknownNet",
 	}
 
