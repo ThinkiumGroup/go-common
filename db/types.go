@@ -257,7 +257,7 @@ func ToRRKey(era common.EraNum) []byte {
 }
 
 func ToStorageEntryKey(root []byte, num int) []byte {
-	nb := make([]byte, 4)
+	nb := make([]byte, 32)
 	binary.BigEndian.PutUint32(nb, uint32(num))
 	return PrefixKey2(KPStorageEntry, root, nb)
 }
