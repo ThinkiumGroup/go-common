@@ -190,3 +190,31 @@ func TestEpochNum_LastHeight(t *testing.T) {
 		}
 	}
 }
+
+func TestToHeight(t *testing.T) {
+	datas := []struct {
+		A EpochNum
+		B BlockNum
+		H Height
+	}{
+		{0, 999, 999},
+		{0, 2222, NilHeight},
+		{1, 999, 1999},
+		{2, 1000, NilHeight},
+		{3, 0, 3000},
+		{NilEpoch, 999, NilHeight},
+		{3, NilBlock, NilHeight},
+		{NilEpoch, 1001, NilHeight},
+		{NilEpoch - 1, 0, NilHeight},
+		{EpochNum(NilHeight / BlocksInEpoch), 0, (NilHeight / BlocksInEpoch) * BlocksInEpoch},
+		{EpochNum(NilHeight / BlocksInEpoch), 999, NilHeight},
+	}
+
+	for _, data := range datas {
+		h := ToHeight(data.A, data.B)
+		if h != data.H {
+			t.Fatalf("ToHeight(Epoch:%s(%d), Block:%s(%d))=%s(%d), should be %s(%d)",
+				data.A, data.A, data.B, data.B, &h, h, &(data.H), data.H)
+		}
+	}
+}

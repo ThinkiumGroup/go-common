@@ -822,14 +822,21 @@ func (bn BlockNum) IsNil() bool {
 	return bn == NilBlock
 }
 
+func (bn BlockNum) IsValid() bool {
+	return bn < BlocksInEpoch
+}
+
 // Is it the last block in an epoch
 func (bn BlockNum) IsLastOfEpoch() bool {
-	return !bn.IsNil() && (bn+1) == BlocksInEpoch
+	return bn.IsValid() && (bn+1) == BlocksInEpoch
 }
 
 func (bn BlockNum) String() string {
 	if bn.IsNil() {
 		return "<nil>"
+	}
+	if !bn.IsValid() {
+		return "<NA>"
 	}
 	return strconv.Itoa(int(bn))
 }
@@ -951,10 +958,19 @@ func BytesToHeight(bs []byte) Height {
 }
 
 func ToHeight(epoch EpochNum, bn BlockNum) Height {
-	if epoch.IsNil() || bn.IsNil() {
+	if epoch.IsNil() || !bn.IsValid() {
 		return NilHeight
 	}
-	return Height(uint64(epoch)*BlocksInEpoch + uint64(bn))
+	h1, overflow := math2.SafeMul(uint64(epoch), BlocksInEpoch)
+	if overflow {
+		return NilHeight
+	}
+	h2, overflow := math2.SafeAdd(h1, uint64(bn))
+	if overflow {
+		return NilHeight
+	}
+	return Height(h2)
+	// return Height(uint64(epoch)*BlocksInEpoch + uint64(bn))
 }
 
 func (h *Height) Clone() *Height {
