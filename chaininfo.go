@@ -867,7 +867,7 @@ func (c *ChainInfos) HasDataNode(nid NodeID) bool {
 }
 
 func (c *ChainInfos) HashValue() ([]byte, error) {
-	if c != nil {
+	if c == nil {
 		return EncodeAndHash(c)
 	}
 	switch c.Version {
