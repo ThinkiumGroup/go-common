@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"testing"
 
-	common "github.com/ThinkiumGroup/go-common"
+	"github.com/ThinkiumGroup/go-common"
 	"github.com/ThinkiumGroup/go-common/db"
 	"github.com/stephenfire/go-rtl"
 )
@@ -109,7 +109,9 @@ func TestTreeNode(t *testing.T) {
 
 func TestHistoryTree(t *testing.T) {
 	dbase := db.NewMemDB()
-	defer dbase.Close()
+	defer func() {
+		_ = dbase.Close()
+	}()
 	htree, err := NewHistoryTree(dbase, nil, true)
 	if err != nil {
 		t.Fatalf("new tree error: %v", err)
@@ -147,7 +149,7 @@ func TestHistoryTree(t *testing.T) {
 			t.Logf("Append(%d,%x) ok", h, v)
 		}
 	}
-	if err = htree.Commit(); err != nil {
+	if err = htree._commit(); err != nil {
 		t.Errorf("Commit error: %v", err)
 	} else {
 		t.Log("Commit check")
@@ -303,7 +305,9 @@ func TestHistoryTree(t *testing.T) {
 
 func TestHistoryTree_Append(t *testing.T) {
 	dbase := db.NewMemDB()
-	defer dbase.Close()
+	defer func() {
+		_ = dbase.Close()
+	}()
 	htree, err := NewHistoryTree(dbase, nil, true)
 	if err != nil {
 		t.Errorf("new tree error: %v", err)
@@ -329,7 +333,7 @@ func TestHistoryTree_Append(t *testing.T) {
 		} else {
 			t.Logf("Append(%d,%x) ok", h, v)
 		}
-		if err = htree.Commit(); err != nil {
+		if err = htree._commit(); err != nil {
 			t.Errorf("Commit error: %v", err)
 			return
 		} else {
@@ -423,7 +427,7 @@ func appendhistory(htree *HistoryTree, start, end uint64) error {
 		if err != nil {
 			return err
 		}
-		if err = htree.Commit(); err != nil {
+		if err = htree._commit(); err != nil {
 			return err
 		}
 		if err = htree.CollapseBefore(h); err != nil {
@@ -435,7 +439,9 @@ func appendhistory(htree *HistoryTree, start, end uint64) error {
 
 func TestHistoryRestore(t *testing.T) {
 	dbase := db.NewMemDB()
-	defer dbase.Close()
+	defer func() {
+		_ = dbase.Close()
+	}()
 	htree, err := NewHistoryTree(dbase, nil, true)
 	if err != nil {
 		t.Errorf("new tree error: %v", err)
@@ -450,14 +456,14 @@ func TestHistoryRestore(t *testing.T) {
 		t.Logf("Append from %d to %d ok", start, end)
 	}
 
-	hash_0x0f, _ := htree.HashValue()
+	hash0x0f, _ := htree.HashValue()
 	p := end - 1
 	value, proofs, ok := htree.GetProof(p)
 	if !ok || len(proofs) != HistoryTreeDepth {
 		t.Errorf("GetProof(%d) failed: %x, %v, %t", p, value, proofs, ok)
 		return
 	} else {
-		t.Logf("GetProof(%d) %x, %v, %t, root:%x", p, value, proofs, ok, hash_0x0f)
+		t.Logf("GetProof(%d) %x, %v, %t, root:%x", p, value, proofs, ok, hash0x0f)
 	}
 
 	if err = appendhistory(htree, end, end+1); err != nil {
@@ -467,35 +473,36 @@ func TestHistoryRestore(t *testing.T) {
 		t.Logf("append %d ok", end)
 	}
 
-	hash_0x0f_1, _ := htree.HashValue()
+	hash0x0f1, _ := htree.HashValue()
 	value, proofs, ok = htree.GetProof(p)
 	if !ok || len(proofs) != HistoryTreeDepth {
 		t.Errorf("GetProof(%d) failed: %x, %v, %t", p, value, proofs, ok)
 		return
 	} else {
-		t.Logf("GetProof(%d) %x, %v, %t, root:%x", p, value, proofs, ok, hash_0x0f_1)
+		t.Logf("GetProof(%d) %x, %v, %t, root:%x", p, value, proofs, ok, hash0x0f1)
 	}
 
-	htree2, _ := NewHistoryTree(dbase, hash_0x0f, true)
+	htree2, _ := NewHistoryTree(dbase, hash0x0f, true)
 	value, proofs, ok = htree2.GetProof(p)
 	if !ok || len(proofs) != HistoryTreeDepth {
 		t.Errorf("GetProof(%d) failed: %x, %v, %t", p, value, proofs, ok)
 		return
 	} else {
-		t.Logf("GetProof(%d) %x, %v, %t, root:%x", p, value, proofs, ok, hash_0x0f)
+		t.Logf("GetProof(%d) %x, %v, %t, root:%x", p, value, proofs, ok, hash0x0f)
 	}
 }
 
-func historytreeproof(t *testing.T, htree *HistoryTree, p uint64) (value []byte, proofs ProofChain, ok bool) {
-	value, proofs, ok = htree.GetProof(p)
-	if !ok || len(proofs) != HistoryTreeDepth {
-		t.Errorf("GetProof(%d) failed: %x, %v, %t", p, value, proofs, ok)
-		return nil, nil, false
-	} else {
-		t.Logf("GetProof(%d) %x, %v, %t", p, value, proofs, ok)
-	}
-	return
-}
+//
+// func historytreeproof(t *testing.T, htree *HistoryTree, p uint64) (value []byte, proofs ProofChain, ok bool) {
+// 	value, proofs, ok = htree.GetProof(p)
+// 	if !ok || len(proofs) != HistoryTreeDepth {
+// 		t.Errorf("GetProof(%d) failed: %x, %v, %t", p, value, proofs, ok)
+// 		return nil, nil, false
+// 	} else {
+// 		t.Logf("GetProof(%d) %x, %v, %t", p, value, proofs, ok)
+// 	}
+// 	return
+// }
 
 func TestHistoryTree_MergeProof(t *testing.T) {
 	dbase1 := db.NewMemDB()
@@ -589,7 +596,7 @@ func TestHistoryTree_MergeProof(t *testing.T) {
 		return true
 	}
 
-	if err = htree2.Commit(); err != nil {
+	if err = htree2._commit(); err != nil {
 		t.Fatalf("htree2.commit failed: %v", err)
 	}
 	if !rootCompare(htree1, htree2) {

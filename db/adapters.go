@@ -21,6 +21,7 @@ import (
 type DataAdapter interface {
 	Load(key []byte) (value []byte, err error)
 	Save(key []byte, value []byte) error
+	Clone() DataAdapter
 }
 
 type DatabasedAdapter interface {
@@ -79,6 +80,13 @@ func NewKeyPrefixedDataAdapter(database Database, keyPrefix []byte) DataAdapter 
 		ret.keyPrefix = nil
 	}
 	return ret
+}
+
+func (k *keyPrefixedDataAdapter) Clone() DataAdapter {
+	return &keyPrefixedDataAdapter{
+		database:  k.database,
+		keyPrefix: common.CopyBytes(k.keyPrefix),
+	}
 }
 
 func (k *keyPrefixedDataAdapter) Rebase(dbase Database) (DatabasedAdapter, error) {
@@ -151,6 +159,10 @@ func (t *transparentDataAdapter) Load(key []byte) (value []byte, err error) {
 
 func (t *transparentDataAdapter) Save(key, value []byte) error {
 	return nil
+}
+
+func (t *transparentDataAdapter) Clone() DataAdapter {
+	return &transparentDataAdapter{}
 }
 
 type KeyDatabase struct {

@@ -15,10 +15,12 @@
 package trie
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/ThinkiumGroup/go-common"
 	"github.com/ThinkiumGroup/go-common/db"
+	"github.com/ThinkiumGroup/go-common/math"
 )
 
 type RevertableTrie struct {
@@ -302,4 +304,103 @@ func (r *RevertableTrie) RevertTo(checkPoint int, root []byte) error {
 		r.Live = r.Live.Inherit(root)
 	}
 	return nil
+}
+
+type RevertableHistoryTree struct {
+	Origin *HistoryTree
+	Live   *HistoryTree
+	chkpts []common.Hash
+	lock   sync.Mutex
+}
+
+func (h *RevertableHistoryTree) _checkLive() error {
+	if h.Live == nil {
+		if h.Origin == nil {
+			return common.ErrNil
+		}
+		h.Live = h.Origin
+		h.Origin = h.Live.Clone()
+	}
+	return nil
+}
+
+func (h *RevertableHistoryTree) Append(key uint64, value []byte) (err error) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	if err := h._checkLive(); err != nil {
+		return fmt.Errorf("check live failed: %v", err)
+	}
+	return h.Live.Append(key, value)
+}
+
+func (h *RevertableHistoryTree) Expecting() uint64 {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	if h.Origin == nil {
+		return math.MaxUint64
+	}
+	return h.Origin.Expecting()
+}
+
+func (h *RevertableHistoryTree) HashValue() ([]byte, error) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	if h.Origin == nil {
+		return nil, nil
+	}
+	return h.Origin.HashValue()
+}
+
+func (h *RevertableHistoryTree) PreHashValue() ([]byte, error) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+
+	if h.Live == nil {
+		if h.Origin == nil {
+			return nil, nil
+		}
+		return h.Origin.HashValue()
+	}
+	return h.Live.HashValue()
+}
+
+func (h *RevertableHistoryTree) _preCommit() ([]byte, error) {
+	if h.Live == nil {
+		if h.Origin == nil {
+			return nil, nil
+		}
+		return h.Origin.HashValue()
+	}
+	if err := h.Live.Commit(); err != nil {
+		return nil, err
+	}
+	return h.Live.HashValue()
+}
+
+func (h *RevertableHistoryTree) PreCommit() ([]byte, error) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+
+	return h._preCommit()
+}
+
+func (h *RevertableHistoryTree) PreCollapseBefore(key uint64) error {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+
+	if h.Live == nil {
+		return nil
+	}
+	return h.Live.CollapseBefore(key)
+}
+
+func (h *RevertableHistoryTree) Commit() error {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	if h.Live != nil {
+		h.Origin = h.Live
+		h.Live = nil
+	}
+	h.chkpts = nil
+	return h.Origin.Commit()
 }

@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/ThinkiumGroup/go-common"
 	"github.com/ThinkiumGroup/go-common/db"
@@ -39,28 +40,35 @@ type HistoryTree struct {
 	expecting uint64         // the expecting key (next key), starting from 0
 	root      *TreeNode      // root node
 	adapter   db.DataAdapter // database
+	lock      sync.Mutex
 }
 
-func (h HistoryTree) Expecting() uint64 {
+func (h *HistoryTree) Expecting() uint64 {
+	h.lock.Lock()
+	defer h.lock.Unlock()
 	return h.expecting
 }
 
-func (h HistoryTree) String() string {
+func (h *HistoryTree) String() string {
+	if h == nil {
+		return "HistoryTree<nil>"
+	}
+	h.lock.Lock()
+	defer h.lock.Unlock()
 	return fmt.Sprintf("HistoryTree{Expecting:%d Root:%s}", h.expecting, h.root)
 }
 
-func NewHistoryTree(dbase db.Database, rootHash []byte, checkPrecedingNil bool) (*HistoryTree, error) {
+func _newHistoryTree(da db.DataAdapter, rootHash []byte, checkPrecedingNil bool) (*HistoryTree, error) {
 	var expecting uint64
 	var rootNode *TreeNode
-	adapter := db.NewKeyPrefixedDataAdapter(dbase, db.KPHistoryNode)
 	if len(rootHash) != common.HashLength || bytes.Compare(common.NilHashSlice, rootHash) == 0 {
 		// root node is nil
 	} else {
 		rootNode = NewTreeNode()
-		if err := rootNode.PutValue(adapter, nil, common.CopyBytes(rootHash)); err != nil {
+		if err := rootNode.PutValue(da, nil, common.CopyBytes(rootHash)); err != nil {
 			return nil, err
 		}
-		prefix, _, _, err := findRightmost(rootNode, adapter, checkPrecedingNil)
+		prefix, _, _, err := findRightmost(rootNode, da, checkPrecedingNil)
 		if err != nil {
 			return nil, err
 		}
@@ -77,10 +85,15 @@ func NewHistoryTree(dbase db.Database, rootHash []byte, checkPrecedingNil bool) 
 	tree := &HistoryTree{
 		expecting: expecting,
 		root:      rootNode,
-		adapter:   adapter,
+		adapter:   da,
 	}
 	log.Debugf("NewHistoryTree(root:%x) successed", rootHash)
 	return tree, nil
+}
+
+func NewHistoryTree(dbase db.Database, rootHash []byte, checkPrecedingNil bool) (*HistoryTree, error) {
+	adapter := db.NewKeyPrefixedDataAdapter(dbase, db.KPHistoryNode)
+	return _newHistoryTree(adapter, rootHash, checkPrecedingNil)
 }
 
 func RestoreTreeFromProofs(dbase db.Database, key uint64, value []byte, proofs ProofChain) (tree *HistoryTree, err error) {
@@ -190,7 +203,7 @@ type nodeTracer struct {
 //           located, it is nil
 // index: The position of the target node or leaf value in its parent node, if the target
 //        node or leaf value does not exist, return -1
-// value: Target leaf value, nil if it does not exist
+// value: Target leaf value, nil if it does not exist.
 // exist: Whether the target node or leaf value exists
 // err: error
 func locateNode(start *TreeNode, prefix []byte, adapter db.DataAdapter, tracers *[]nodeTracer) (lastNode *TreeNode,
@@ -251,36 +264,55 @@ func (h *HistoryTree) Rebase(dbase db.Database) (*HistoryTree, error) {
 	if h == nil {
 		return nil, nil
 	}
+	h.lock.Lock()
+	defer h.lock.Unlock()
 
-	if err := h.Commit(); err != nil {
+	if err := h._commit(); err != nil {
 		return nil, err
 	}
-	root, err := h.HashValue()
+	root, err := h._hashValue()
 	if err != nil {
 		return nil, err
 	}
 	return NewHistoryTree(dbase, root, false)
 }
 
-func (h *HistoryTree) HashValue() ([]byte, error) {
+func (h *HistoryTree) Clone() *HistoryTree {
+	if h == nil {
+		return nil
+	}
+	h.lock.Lock()
+	defer h.lock.Unlock()
+
+	_ = h._commit()
+	root, _ := h._hashValue()
+	ht, _ := _newHistoryTree(h.adapter.Clone(), root, false)
+	return ht
+}
+
+func (h *HistoryTree) _hashValue() ([]byte, error) {
 	if h == nil || h.root == nil {
 		return common.CopyBytes(common.NilHashSlice), nil
 	}
 	return h.root.HashValue()
 }
 
-func (h *HistoryTree) CollapseBefore(key uint64) error {
-	prefix := heightToPrefix(key)
-	return h.collapse(prefix)
+func (h *HistoryTree) HashValue() ([]byte, error) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	return h._hashValue()
 }
 
-func (h *HistoryTree) collapse(prefixString []byte) error {
-	if len(prefixString) != HistoryTreeDepth {
+func (h *HistoryTree) CollapseBefore(key uint64) error {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	prefix := heightToPrefix(key)
+	if len(prefix) != HistoryTreeDepth {
 		return common.ErrIllegalParams
 	}
 	lastNoneZeroPos := HistoryTreeDepth
 	for ; lastNoneZeroPos > 0; lastNoneZeroPos-- {
-		if prefixString[lastNoneZeroPos-1] != 0x0 {
+		if prefix[lastNoneZeroPos-1] != 0x0 {
 			break
 		}
 	}
@@ -288,7 +320,7 @@ func (h *HistoryTree) collapse(prefixString []byte) error {
 		// The lowest bit is not zero or the prefix is all zeros, then no folding is required
 		return nil
 	}
-	parentNode, index, _, exist, err := locateNode(h.root, prefixString[:lastNoneZeroPos], h.adapter, nil)
+	parentNode, index, _, exist, err := locateNode(h.root, prefix[:lastNoneZeroPos], h.adapter, nil)
 	if err != nil {
 		return err
 	}
@@ -310,6 +342,9 @@ func (h *HistoryTree) collapse(prefixString []byte) error {
 
 // append at the end in order, if key != expecting, or value is empty, return ErrIllegalParams
 func (h *HistoryTree) Append(key uint64, value []byte) (err error) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+
 	if key != h.expecting {
 		return common.ErrIllegalParams
 	}
@@ -340,11 +375,17 @@ func (h *HistoryTree) Append(key uint64, value []byte) (err error) {
 }
 
 func (h *HistoryTree) Has(key uint64) bool {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+
 	_, exist := h.Get(key)
 	return exist
 }
 
 func (h *HistoryTree) Get(key uint64) (value []byte, exist bool) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+
 	prefix := heightToPrefix(key)
 	var err error
 	_, value, exist, err = h.root.traceDescendant(h.adapter, prefix, 0, false, nil)
@@ -355,7 +396,13 @@ func (h *HistoryTree) Get(key uint64) (value []byte, exist bool) {
 }
 
 func (h *HistoryTree) GetProof(key uint64) (value []byte, proofs ProofChain, ok bool) {
-	if h == nil || h.root == nil {
+	if h == nil {
+		return nil, nil, false
+	}
+	h.lock.Lock()
+	defer h.lock.Unlock()
+
+	if h.root == nil {
 		return nil, nil, false
 	}
 	prefix := heightToPrefix(key)
@@ -386,6 +433,9 @@ func (h *HistoryTree) GetProof(key uint64) (value []byte, proofs ProofChain, ok 
 
 // Merge the proofs under the same rootHash into the tree
 func (h *HistoryTree) MergeProof(key uint64, value []byte, proofs ProofChain) error {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+
 	if len(value) != common.HashLength || proofs == nil {
 		return errors.New("value or proofs is nil")
 	}
@@ -399,7 +449,7 @@ func (h *HistoryTree) MergeProof(key uint64, value []byte, proofs ProofChain) er
 	}
 
 	// Check whether it is the content of the same tree
-	root, err := h.HashValue()
+	root, err := h._hashValue()
 	if err != nil {
 		return common.NewDvppError("get history tree root hash error", err)
 	}
@@ -463,11 +513,17 @@ func (h *HistoryTree) MergeProof(key uint64, value []byte, proofs ProofChain) er
 	return nil
 }
 
-func (h *HistoryTree) Commit() (err error) {
+func (h *HistoryTree) _commit() (err error) {
 	if h == nil || h.root == nil {
 		return nil
 	}
 	return h.root.commitNode(h.adapter)
+}
+
+func (h *HistoryTree) Commit() error {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	return h._commit()
 }
 
 // In order to be able to serialize and deserialize, there can be no undetermined
