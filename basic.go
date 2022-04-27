@@ -784,6 +784,17 @@ func (en EpochNum) Compare(o EpochNum) int {
 	}
 }
 
+func (en EpochNum) FirstHeight() Height {
+	if en.IsNil() {
+		return NilHeight
+	}
+	r, overflow := math2.SafeMul(uint64(en), BlocksInEpoch)
+	if overflow {
+		return NilHeight
+	}
+	return Height(r)
+}
+
 func (en EpochNum) LastHeight() Height {
 	if en.IsNil() {
 		return NilHeight
@@ -918,6 +929,10 @@ func (h Height) UsefulBlock() BlockNum {
 		return 0
 	}
 	return BlockNum(h % BlocksInEpoch)
+}
+
+func (h Height) IsFirstOfEpoch() bool {
+	return !h.IsNil() && (h%BlocksInEpoch) == 0
 }
 
 // Is it the last block in an epoch

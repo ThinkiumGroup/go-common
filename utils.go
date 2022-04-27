@@ -111,18 +111,41 @@ func PointerSliceLess(slice interface{}, i, j int) (less bool, needCompare bool)
 	return false, true
 }
 
-func CompareSlices(a, b interface{}, objComparer func(c, d interface{}) int) int {
+func PointerCompare(a, b interface{}) (cmp int, needCompare bool) {
 	va, vb := reflect.ValueOf(a), reflect.ValueOf(b)
+	if va.IsNil() && vb.IsNil() {
+		return 0, false
+	}
+	if va.IsNil() {
+		return -1, false
+	}
+	if vb.IsNil() {
+		return 1, false
+	}
+	return 0, true
+}
+
+func CompareSlices(a, b interface{}, objComparer func(x, y interface{}) int) int {
+	va, vb := reflect.ValueOf(a), reflect.ValueOf(b)
+	if va.IsNil() && vb.IsNil() {
+		return 0
+	}
+	if va.IsNil() {
+		return -1
+	}
+	if vb.IsNil() {
+		return 1
+	}
 	if va.Len() == 0 && vb.Len() == 0 {
 		return 0
 	}
-	for i := 0; i < va.Len() && i < vb.Len(); i++ {
-		p := objComparer(va.Index(i).Interface(), vb.Index(i).Interface())
-		if p != 0 {
-			return p
-		}
-	}
 	if va.Len() == vb.Len() {
+		for i := 0; i < va.Len(); i++ {
+			p := objComparer(va.Index(i).Interface(), vb.Index(i).Interface())
+			if p != 0 {
+				return p
+			}
+		}
 		return 0
 	} else if va.Len() < vb.Len() {
 		return -1
