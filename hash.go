@@ -299,12 +299,19 @@ func (p *MerkleProofs) Deserialization(r io.Reader) (shouldBeNil bool, err error
 	return
 }
 
+func (p *MerkleProofs) Summary() string {
+	if p == nil {
+		return "MP<nil>"
+	}
+	return fmt.Sprintf("MP{Path:%s Hashs:%d}", p.Paths, len(p.Hashs))
+}
+
 func (p MerkleProofs) String() string {
 	buf := BytesBufferPool.Get().(*bytes.Buffer)
 	defer BytesBufferPool.Put(buf)
 	buf.Reset()
 
-	buf.WriteString("Proof{")
+	buf.WriteString("MProof{")
 	buf.WriteString(fmt.Sprintf("(%x),", p.Paths.Uint64()))
 	if len(p.Hashs) > 0 {
 		for i := 0; i < len(p.Hashs); i++ {

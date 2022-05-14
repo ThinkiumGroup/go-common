@@ -837,6 +837,10 @@ func (bn BlockNum) IsValid() bool {
 	return bn < BlocksInEpoch
 }
 
+func (bn BlockNum) IsFirstOfEpoch() bool {
+	return bn == 0
+}
+
 // Is it the last block in an epoch
 func (bn BlockNum) IsLastOfEpoch() bool {
 	return bn.IsValid() && (bn+1) == BlocksInEpoch

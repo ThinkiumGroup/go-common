@@ -276,6 +276,14 @@ func NewBranchNodeProof(childIndex uint8, header NodeHeader, childProofs *common
 	return NewNodeProof(ProofType(childIndex), header, nil, childProofs)
 }
 
+func (n *NodeProof) Summary() string {
+	if n.ValueHash != nil {
+		return fmt.Sprintf("NP{PTYPE:%s, Header:%s, Value:%x, Children:%s}", n.PType, n.Header, n.ValueHash[:5], n.ChildProofs.Summary())
+	} else {
+		return fmt.Sprintf("NP{PTYPE:%s, Header:%s, Value:<nil>, Children:%s}", n.PType, n.Header, n.ChildProofs.Summary())
+	}
+}
+
 func (n *NodeProof) String() string {
 	if n.ValueHash != nil {
 		return fmt.Sprintf("NP{PTYPE:%s, Header:%s, Value:%x, Children:%s}", n.PType, n.Header, n.ValueHash[:5], n.ChildProofs)
@@ -852,6 +860,22 @@ func (c ProofChain) HistoryProof(height common.Height, hob []byte) ([]byte, erro
 
 func (c ProofChain) InfoString(level common.IndentLevel) string {
 	return level.InfoString(c)
+}
+
+func (c ProofChain) String() string {
+	if c == nil {
+		return "<nil>"
+	}
+	buf := new(bytes.Buffer)
+	buf.WriteByte('[')
+	for i, np := range c {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		buf.WriteString(np.Summary())
+	}
+	buf.WriteByte(']')
+	return buf.String()
 }
 
 // evidence for something
