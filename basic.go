@@ -1107,6 +1107,16 @@ func (a *Address) Slice() []byte {
 	return a[:]
 }
 
+func (a *Address) Equal(o *Address) bool {
+	if a == o {
+		return true
+	}
+	if a == nil || o == nil {
+		return false
+	}
+	return *a == *o
+}
+
 func (a *Address) Cmp(o *Address) int {
 	if a == o {
 		return 0
