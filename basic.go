@@ -260,6 +260,15 @@ func (m *LastBlockMap) CopyMap() map[ChainID]Height {
 	return r
 }
 
+func (i CommID) ShouldPropose(commSize int) int {
+	quotient := BlocksInEpoch / commSize
+	remaider := BlocksInEpoch % commSize
+	if remaider > int(i) {
+		quotient++
+	}
+	return quotient
+}
+
 func (i CommID) String() string {
 	return fmt.Sprintf("CommID:%d", i)
 }
@@ -683,6 +692,14 @@ func (e *EraNum) Clone() *EraNum {
 	return &o
 }
 
+func (e *EraNum) Hash() Hash {
+	if e == nil {
+		return NilHash
+	}
+	h, _ := HashObject(e)
+	return BytesToHash(h)
+}
+
 func (e *EraNum) Equal(o *EraNum) bool {
 	if e == o {
 		return true
@@ -1022,6 +1039,14 @@ func (h *Height) String() string {
 
 func (h Height) HashValue() ([]byte, error) {
 	return Hash256s(h.Bytes())
+}
+
+func (h *Height) Hash() Hash {
+	if h == nil {
+		return NilHash
+	}
+	hh, _ := HashObject(h)
+	return BytesToHash(hh)
 }
 
 var (
@@ -1400,10 +1425,10 @@ func HashLess(a, b Hash) bool {
 
 // CreateAddress creates an ethereum address given the bytes and the nonce
 func CreateAddress(b Address, nonce uint64) Address {
-	//buf := new(bytes.Buffer)
-	//buf.Write(b[:])
-	//rtl.ToBinaryBuffer(nonce, buf)
-	//return BytesToAddress(h[12:])
+	// buf := new(bytes.Buffer)
+	// buf.Write(b[:])
+	// rtl.ToBinaryBuffer(nonce, buf)
+	// return BytesToAddress(h[12:])
 	data, _ := rlp.EncodeToBytes([]interface{}{b, nonce})
 	h, _ := Hash256s(data)
 	return BytesToAddress(h[12:])
@@ -1556,6 +1581,14 @@ func (s *Seed) Clone() *Seed {
 		return nil
 	}
 	return new(Seed).SetBytes(s.Byte())
+}
+
+func (s *Seed) Hash() Hash {
+	if s == nil {
+		return NilHash
+	}
+	h, _ := Hash256s(s[:])
+	return BytesToHash(h)
 }
 
 // String to ElectionType, invalid string bool returns false

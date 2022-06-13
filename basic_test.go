@@ -218,3 +218,24 @@ func TestToHeight(t *testing.T) {
 		}
 	}
 }
+
+func TestCommID_ShouldPropose(t *testing.T) {
+	datas := []struct {
+		A CommID
+		B int // comm size
+		C int // number of blocks should propose
+	}{
+		{1, 15, 67},
+		{9, 15, 67},
+		{10, 15, 66},
+		{0, 20, 50},
+		{19, 20, 50},
+	}
+
+	for _, data := range datas {
+		n := data.A.ShouldPropose(data.B)
+		if n != data.C {
+			t.Fatalf("CommID:%d CommSize:%d Should:%d but %d", data.A, data.B, data.C, n)
+		}
+	}
+}
