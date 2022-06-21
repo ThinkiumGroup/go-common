@@ -318,6 +318,13 @@ func MustBigInt(x *big.Int) *big.Int {
 	return x
 }
 
+func MustPositiveInt(x *big.Int) *big.Int {
+	if x == nil || x.Sign() <= 0 {
+		return nil
+	}
+	return x
+}
+
 func MustCreatedBigInt(v *big.Int, isCreated bool) *big.Int {
 	if v == nil {
 		return big.NewInt(0)
@@ -394,4 +401,108 @@ func CompareBigRat(a, b *big.Rat) int {
 		return 1
 	}
 	return a.Cmp(b)
+}
+
+type BigInt big.Int
+
+func NewBigInt() *BigInt {
+	return (*BigInt)(big.NewInt(0))
+}
+
+func (b *BigInt) Positive() bool {
+	if b == nil || (*big.Int)(b).Sign() <= 0 {
+		return false
+	}
+	return true
+}
+
+func (b *BigInt) Copy() *BigInt {
+	if b == nil {
+		return nil
+	}
+	return (*BigInt)(new(big.Int).Set((*big.Int)(b)))
+}
+
+func (b *BigInt) Int() *big.Int {
+	return (*big.Int)(b)
+}
+
+func (b *BigInt) MustInt() *big.Int {
+	if b == nil {
+		return big.NewInt(0)
+	}
+	return (*big.Int)(b)
+}
+
+func (b *BigInt) Add(a *BigInt) *BigInt {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return (*BigInt)(new(big.Int).Set((*big.Int)(a)))
+	}
+	c := (*big.Int)(b)
+	return (*BigInt)(c.Add(c, (*big.Int)(a)))
+}
+
+func (b *BigInt) AddInt(a *big.Int) *BigInt {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return (*BigInt)(new(big.Int).Set(a))
+	} else {
+		c := (*big.Int)(b)
+		return (*BigInt)(c.Add(c, a))
+	}
+}
+
+func (b *BigInt) SubInt(a *big.Int) *BigInt {
+	if a == nil {
+		return b
+	}
+	var c *big.Int
+	if b == nil {
+		c = big.NewInt(0)
+	} else {
+		c = (*big.Int)(b)
+	}
+	c.Sub(c, a)
+	return (*BigInt)(c)
+}
+
+func (b *BigInt) Mul(a *big.Int) *BigInt {
+	if b == nil {
+		return nil
+	}
+	if a == nil || a.Sign() == 0 {
+		return nil
+	}
+	c := (*big.Int)(b)
+	return (*BigInt)(c.Mul(c, a))
+}
+
+func (b *BigInt) SetInt(a *big.Int) *BigInt {
+	if a == nil {
+		return nil
+	}
+	if b == nil {
+		return (*BigInt)(new(big.Int).Set(a))
+	}
+	return (*BigInt)((*big.Int)(b).Set(a))
+}
+
+func (b *BigInt) CompareInt(i *big.Int) int {
+	return CompareBigInt((*big.Int)(b), i)
+}
+
+func (b *BigInt) MustPositive() *big.Int {
+	if b.Positive() {
+		return (*big.Int)(b)
+	}
+	return nil
+}
+
+func (b *BigInt) String() string {
+	return BigIntForPrint((*big.Int)(b))
 }
