@@ -1259,6 +1259,13 @@ func (a Address) String() string {
 	return hex.EncodeToString(a[:])
 }
 
+func (a *Address) ToString() string {
+	if a == nil {
+		return "<nil>"
+	}
+	return (*a).String()
+}
+
 type Hash [HashLength]byte
 
 func NewHash(b []byte) *Hash {
