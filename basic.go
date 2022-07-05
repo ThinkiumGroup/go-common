@@ -763,6 +763,14 @@ func (e EraNum) Bytes() []byte {
 	return ret
 }
 
+func (en *EpochNum) Clone() *EpochNum {
+	if en == nil {
+		return nil
+	}
+	o := *en
+	return &o
+}
+
 func (en EpochNum) IsNil() bool {
 	return en == NilEpoch
 }
@@ -801,6 +809,19 @@ func (en EpochNum) Compare(o EpochNum) int {
 	}
 }
 
+func (en *EpochNum) Cmp(o *EpochNum) int {
+	if en == o {
+		return 0
+	}
+	if en == nil {
+		return -1
+	}
+	if o == nil {
+		return 1
+	}
+	return (*en).Compare(*o)
+}
+
 func (en EpochNum) FirstHeight() Height {
 	if en.IsNil() {
 		return NilHeight
@@ -832,6 +853,13 @@ func (en EpochNum) String() string {
 		return "<nil>"
 	}
 	return strconv.FormatUint(uint64(en), 10)
+}
+
+func (en *EpochNum) ToString() string {
+	if en == nil {
+		return ""
+	}
+	return (*en).String()
 }
 
 func (en EpochNum) Bytes() []byte {

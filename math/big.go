@@ -405,8 +405,12 @@ func CompareBigRat(a, b *big.Rat) int {
 
 type BigInt big.Int
 
-func NewBigInt() *BigInt {
-	return (*BigInt)(big.NewInt(0))
+func NewBigInt(a *big.Int) *BigInt {
+	if a == nil {
+		return nil
+	}
+	b := new(big.Int).Set(a)
+	return (*BigInt)(b)
 }
 
 func (b *BigInt) Positive() bool {
@@ -416,11 +420,8 @@ func (b *BigInt) Positive() bool {
 	return true
 }
 
-func (b *BigInt) Copy() *BigInt {
-	if b == nil {
-		return nil
-	}
-	return (*BigInt)(new(big.Int).Set((*big.Int)(b)))
+func (b *BigInt) Clone() *BigInt {
+	return NewBigInt((*big.Int)(b))
 }
 
 func (b *BigInt) Int() *big.Int {
@@ -490,6 +491,10 @@ func (b *BigInt) SetInt(a *big.Int) *BigInt {
 		return (*BigInt)(new(big.Int).Set(a))
 	}
 	return (*BigInt)((*big.Int)(b).Set(a))
+}
+
+func (b *BigInt) Compare(o *BigInt) int {
+	return CompareBigInt((*big.Int)(b), (*big.Int)(o))
 }
 
 func (b *BigInt) CompareInt(i *big.Int) int {
