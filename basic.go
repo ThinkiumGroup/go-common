@@ -1145,11 +1145,23 @@ func (a Address) IsNoGas() bool {
 	return exist
 }
 
+func (a *Address) Value() Address {
+	if a == nil {
+		return Address{}
+	}
+	return *a
+}
+
 func (a *Address) Clone() *Address {
 	if a == nil {
 		return nil
 	}
 	b := *a
+	return &b
+}
+
+func (a Address) Copy() *Address {
+	b := a
 	return &b
 }
 

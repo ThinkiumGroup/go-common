@@ -413,11 +413,19 @@ func NewBigInt(a *big.Int) *BigInt {
 	return (*BigInt)(b)
 }
 
-func (b *BigInt) Positive() bool {
-	if b == nil || (*big.Int)(b).Sign() <= 0 {
-		return false
+func (b *BigInt) Sign() int {
+	if b == nil {
+		return 0
 	}
-	return true
+	return (*big.Int)(b).Sign()
+}
+
+func (b *BigInt) Positive() bool {
+	return b.Sign() > 0
+}
+
+func (b *BigInt) Negative() bool {
+	return b.Sign() < 0
 }
 
 func (b *BigInt) Clone() *BigInt {
@@ -425,7 +433,14 @@ func (b *BigInt) Clone() *BigInt {
 }
 
 func (b *BigInt) Int() *big.Int {
-	return (*big.Int)(b)
+	c := (*big.Int)(b)
+	if c == nil {
+		return nil
+	}
+	if c.Sign() == 0 {
+		return nil
+	}
+	return c
 }
 
 func (b *BigInt) MustInt() *big.Int {
@@ -436,14 +451,7 @@ func (b *BigInt) MustInt() *big.Int {
 }
 
 func (b *BigInt) Add(a *BigInt) *BigInt {
-	if a == nil {
-		return b
-	}
-	if b == nil {
-		return (*BigInt)(new(big.Int).Set((*big.Int)(a)))
-	}
-	c := (*big.Int)(b)
-	return (*BigInt)(c.Add(c, (*big.Int)(a)))
+	return b.AddInt((*big.Int)(a))
 }
 
 func (b *BigInt) AddInt(a *big.Int) *BigInt {
@@ -456,6 +464,10 @@ func (b *BigInt) AddInt(a *big.Int) *BigInt {
 		c := (*big.Int)(b)
 		return (*BigInt)(c.Add(c, a))
 	}
+}
+
+func (b *BigInt) Sub(a *BigInt) *BigInt {
+	return b.SubInt((*big.Int)(a))
 }
 
 func (b *BigInt) SubInt(a *big.Int) *BigInt {
@@ -472,7 +484,11 @@ func (b *BigInt) SubInt(a *big.Int) *BigInt {
 	return (*BigInt)(c)
 }
 
-func (b *BigInt) Mul(a *big.Int) *BigInt {
+func (b *BigInt) Mul(a *BigInt) *BigInt {
+	return b.MulInt((*big.Int)(a))
+}
+
+func (b *BigInt) MulInt(a *big.Int) *BigInt {
 	if b == nil {
 		return nil
 	}
@@ -483,6 +499,21 @@ func (b *BigInt) Mul(a *big.Int) *BigInt {
 	return (*BigInt)(c.Mul(c, a))
 }
 
+func (b *BigInt) Div(a *BigInt) *BigInt {
+	return b.DivInt((*big.Int)(a))
+}
+
+func (b *BigInt) DivInt(a *big.Int) *BigInt {
+	if a == nil || a.Sign() == 0 {
+		panic("bigint division by zero")
+	}
+	if b == nil {
+		return nil
+	}
+	c := (*big.Int)(b)
+	return (*BigInt)(c.Div(c, a))
+}
+
 func (b *BigInt) SetInt(a *big.Int) *BigInt {
 	if a == nil {
 		return nil
@@ -491,6 +522,17 @@ func (b *BigInt) SetInt(a *big.Int) *BigInt {
 		return (*BigInt)(new(big.Int).Set(a))
 	}
 	return (*BigInt)((*big.Int)(b).Set(a))
+}
+
+func (b *BigInt) MulRat(r *big.Rat) *BigInt {
+	if b == nil {
+		return nil
+	}
+	if r == nil || r.Sign() == 0 {
+		return nil
+	}
+	num, denom := r.Num(), r.Denom()
+	return b.MulInt(num).DivInt(denom)
 }
 
 func (b *BigInt) Compare(o *BigInt) int {
