@@ -108,7 +108,7 @@ const (
 	ProofHeaderHdsRoot   ProofType = 0x26 // To proof header Headers root
 
 	ProofHeaderBase  ProofType = 0x30 // proof header type = ProofHeaderBase + models.BH* (Header column index)
-	ProofHeaderLimit           = ProofHeaderBase + 33
+	ProofHeaderLimit           = ProofHeaderBase + 35
 )
 
 // var (

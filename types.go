@@ -24,6 +24,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ThinkiumGroup/go-common/hexutil"
 	"github.com/ThinkiumGroup/go-common/log"
 	lru "github.com/hashicorp/golang-lru"
 )
@@ -324,6 +325,8 @@ func InfoStringer(v reflect.Value, level IndentLevel) string {
 	}
 	o := v.Interface()
 	switch obj := o.(type) {
+	case []byte:
+		return hexutil.Encode(obj)
 	case string:
 		return obj
 	case Infoer:
