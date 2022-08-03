@@ -556,10 +556,10 @@ func TestHistoryTree_MergeProof(t *testing.T) {
 
 	merge := func(key uint64, value []byte, proofs ProofChain) bool {
 		if err := htree2.MergeProof(key, value, proofs); err != nil {
-			t.Logf("MergeProof(%d,%x,%s) error: %v", key, value, proofs, err)
+			t.Logf("mergeProof(%d,%x,%s) error: %v", key, value, proofs, err)
 			return false
 		} else {
-			t.Logf("MergeProof(%d) ok", key)
+			t.Logf("mergeProof(%d) ok", key)
 		}
 		return true
 	}

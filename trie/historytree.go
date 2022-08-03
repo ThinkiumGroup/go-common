@@ -49,13 +49,20 @@ func (h *HistoryTree) Expecting() uint64 {
 	return h.expecting
 }
 
+func (h *HistoryTree) _info() string {
+	if h == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("{Expecting:%d Root:%s}", h.expecting, h.root.MakeFullString(false))
+}
+
 func (h *HistoryTree) String() string {
 	if h == nil {
 		return "HistoryTree<nil>"
 	}
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	return fmt.Sprintf("HistoryTree{Expecting:%d Root:%s}", h.expecting, h.root)
+	return fmt.Sprintf("HistoryTree%s", h._info())
 }
 
 func _newHistoryTree(da db.DataAdapter, rootHash []byte, checkPrecedingNil bool) (*HistoryTree, error) {
@@ -65,7 +72,7 @@ func _newHistoryTree(da db.DataAdapter, rootHash []byte, checkPrecedingNil bool)
 		// root node is nil
 	} else {
 		rootNode = NewTreeNode()
-		if err := rootNode.PutValue(da, nil, common.CopyBytes(rootHash)); err != nil {
+		if err := rootNode.putValue(da, nil, rootHash); err != nil {
 			return nil, err
 		}
 		prefix, _, _, err := findRightmost(rootNode, da, checkPrecedingNil)
@@ -87,7 +94,7 @@ func _newHistoryTree(da db.DataAdapter, rootHash []byte, checkPrecedingNil bool)
 		root:      rootNode,
 		adapter:   da,
 	}
-	log.Debugf("NewHistoryTree(root:%x) successed", rootHash)
+	log.Debugf("NewHistoryTree(root:%x) = %s successed", rootHash, tree)
 	return tree, nil
 }
 
@@ -110,10 +117,10 @@ func RestoreTreeFromProofs(dbase db.Database, key uint64, value []byte, proofs P
 	for i := 0; i < HistoryTreeDepth; i++ {
 		if i == 0 {
 			// leaf node
-			nodes[i], err = NewNodeByProof(adapter, int(prefix[last-i]), value, nil, proofs[i].ChildProofs)
+			nodes[i], err = newNodeByProof(adapter, int(prefix[last-i]), value, nil, proofs[i].ChildProofs)
 		} else {
 			// non-leaf node
-			nodes[i], err = NewNodeByProof(adapter, int(prefix[last-i]), nil, nodes[i-1], proofs[i].ChildProofs)
+			nodes[i], err = newNodeByProof(adapter, int(prefix[last-i]), nil, nodes[i-1], proofs[i].ChildProofs)
 		}
 		if err != nil {
 			return nil, err
@@ -155,13 +162,13 @@ func findRightmost(root *TreeNode, adapter db.DataAdapter, checkPrecedingNil boo
 	prefixToLeaf = make([]byte, 0)
 	for i := 0; i < HistoryTreeDepth; i++ {
 		if node.isCollapsed() {
-			err = node.Expand(adapter)
+			err = node.expand(adapter)
 			if err != nil {
 				return nil, nil, nil, err
 			}
 		}
 		if node.IsLeaf() {
-			index, leaf := node.RightmostLeaf(checkPrecedingNil)
+			index, leaf := node.rightmostLeaf(checkPrecedingNil)
 			if index < 0 || leaf == nil {
 				// missing leaf node
 				return nil, nil, nil, ErrMissingValue
@@ -173,7 +180,7 @@ func findRightmost(root *TreeNode, adapter db.DataAdapter, checkPrecedingNil boo
 			prefixToLeaf = append(prefixToLeaf, byte(index))
 			return prefixToLeaf, node, leaf, nil
 		} else {
-			index, child := node.RightmostChild(checkPrecedingNil)
+			index, child := node.rightmostChild(checkPrecedingNil)
 			if index < 0 || child == nil {
 				log.Errorf("ErrMissingChild: i=%d prefix:%x index=%d child==nil:%t", i, prefixToLeaf, index, child == nil)
 				// missing child
@@ -221,7 +228,7 @@ func locateNode(start *TreeNode, prefix []byte, adapter db.DataAdapter, tracers 
 			return nil, -1, nil, false, common.ErrIllegalParams
 		}
 		if node.isCollapsed() {
-			err = node.Expand(adapter)
+			err = node.expand(adapter)
 			if err != nil {
 				return nil, -1, nil, false, err
 			}
@@ -336,8 +343,8 @@ func (h *HistoryTree) CollapseBefore(key uint64) error {
 	if parentNode.Children[index-1].isDirty {
 		return common.ErrIllegalStatus
 	}
-	// fmt.Printf("going to Collapse node at %s.%d\n", prefixToHexstring(prefixString[:lastNoneZeroPos-1]), index-1)
-	return parentNode.Children[index-1].Collapse(h.adapter)
+	// fmt.Printf("going to collapse node at %s.%d\n", prefixToHexstring(prefixString[:lastNoneZeroPos-1]), index-1)
+	return parentNode.Children[index-1].collapse(h.adapter)
 }
 
 // append at the end in order, if key != expecting, or value is empty, return ErrIllegalParams
@@ -392,7 +399,7 @@ func (h *HistoryTree) Get(key uint64) (value []byte, exist bool) {
 	if err != nil {
 		return nil, false
 	}
-	return value, exist
+	return common.CopyBytes(value), exist
 }
 
 func (h *HistoryTree) GetProof(key uint64) (value []byte, proofs ProofChain, ok bool) {
@@ -419,7 +426,7 @@ func (h *HistoryTree) GetProof(key uint64) (value []byte, proofs ProofChain, ok 
 
 	for i := len(tracers) - 1; i >= 0; i-- {
 		node := tracers[i].nodeInPos
-		_, _, proof, err := node.MakeProof(index)
+		_, _, proof, err := node.makeProof(index)
 		if err != nil {
 			log.Errorf("HistoryTree.GetProof error: %v", err)
 			return nil, nil, false
@@ -428,7 +435,7 @@ func (h *HistoryTree) GetProof(key uint64) (value []byte, proofs ProofChain, ok 
 		index = int(tracers[i].pos)
 	}
 
-	return value, proofs, true
+	return common.CopyBytes(value), proofs, true
 }
 
 // Merge the proofs under the same rootHash into the tree
@@ -473,8 +480,8 @@ func (h *HistoryTree) MergeProof(key uint64, value []byte, proofs ProofChain) er
 			return nil
 		}
 		// target leaf node already exists, and the values are not match
-		return fmt.Errorf("want value(%x), but found a different leaf(%x) in the tree", value[:5],
-			common.ForPrint(leafvalue))
+		return fmt.Errorf("want value(%x), but found a different leaf(%x) in the tree",
+			common.ForPrint(value), common.ForPrint(leafvalue))
 	}
 	nodes := make([]*TreeNode, HistoryTreeDepth)
 	last := HistoryTreeDepth - 1
@@ -490,23 +497,23 @@ func (h *HistoryTree) MergeProof(key uint64, value []byte, proofs ProofChain) er
 			// creating when the node is missing
 			if i == 0 {
 				// leaf node
-				nodes[i], err = NewNodeByProof(h.adapter, int(prefix[last-i]), value, nil, proofs[i].ChildProofs)
+				nodes[i], err = newNodeByProof(h.adapter, int(prefix[last-i]), value, nil, proofs[i].ChildProofs)
 			} else {
 				// non-leaf node
-				nodes[i], err = NewNodeByProof(h.adapter, int(prefix[last-i]), nil, nodes[i-1], proofs[i].ChildProofs)
+				nodes[i], err = newNodeByProof(h.adapter, int(prefix[last-i]), nil, nodes[i-1], proofs[i].ChildProofs)
 			}
 			if err != nil {
-				return fmt.Errorf("NewNodeByProof(%d) at %d error: %v", int(prefix[last-i]), i, err)
+				return fmt.Errorf("newNodeByProof(%d) at %d error: %v", int(prefix[last-i]), i, err)
 			}
 		} else {
 			// merge when the node already exists
 			if i == 0 {
-				err = nodes[i].MergeProof(h.adapter, int(prefix[last-i]), value, nil, proofs[i].ChildProofs)
+				err = nodes[i].mergeProof(h.adapter, int(prefix[last-i]), value, nil, proofs[i].ChildProofs)
 			} else {
-				err = nodes[i].MergeProof(h.adapter, int(prefix[last-i]), nil, nodes[i-1], proofs[i].ChildProofs)
+				err = nodes[i].mergeProof(h.adapter, int(prefix[last-i]), nil, nodes[i-1], proofs[i].ChildProofs)
 			}
 			if err != nil {
-				return fmt.Errorf("MergeProof(%d) at %d error: %v", int(prefix[last-i]), i, err)
+				return fmt.Errorf("mergeProof(%d) at %d error: %v", int(prefix[last-i]), i, err)
 			}
 		}
 	}
@@ -553,7 +560,7 @@ func NewTreeNode() *TreeNode {
 
 // When value is a legal hash value, a new leaf node is generated. Otherwise, when the
 // child is not nil, a new non leaf node is generated.
-func NewNodeByProof(adapter db.DataAdapter, index int, value []byte, child *TreeNode,
+func newNodeByProof(adapter db.DataAdapter, index int, value []byte, child *TreeNode,
 	proof *common.MerkleProofs) (rn *TreeNode, err error) {
 	if index < 0 || index >= childrenLength ||
 		(len(value) != common.HashLength && child == nil) ||
@@ -565,7 +572,7 @@ func NewNodeByProof(adapter db.DataAdapter, index int, value []byte, child *Tree
 		isLeaf:  len(value) == common.HashLength, // If value is a legal hash value, it is a leaf node
 		Branchs: make(map[string][]byte),
 	}
-	if err := node.MergeProof(adapter, index, value, child, proof); err != nil {
+	if err := node.mergeProof(adapter, index, value, child, proof); err != nil {
 		return nil, err
 	}
 	return node, nil
@@ -640,7 +647,7 @@ func (n *TreeNode) checkChildren() (hasChild bool, missingChild bool, lastChild 
 	return
 }
 
-func (n *TreeNode) RightmostChild(checkPrecedingNil bool) (index int, child *TreeNode) {
+func (n *TreeNode) rightmostChild(checkPrecedingNil bool) (index int, child *TreeNode) {
 	index = -1
 	for i := 0; i < childrenLength; i++ {
 		if n.Children[i] != nil {
@@ -689,7 +696,7 @@ func (n *TreeNode) checkLeafs() (hasLeaf bool, missingLeaf bool, lastLeaf int) {
 	return
 }
 
-func (n *TreeNode) RightmostLeaf(checkPrecedingNil bool) (index int, leaf []byte) {
+func (n *TreeNode) rightmostLeaf(checkPrecedingNil bool) (index int, leaf []byte) {
 	index = -1
 	for i := 0; i < childrenLength; i++ {
 		if n.Leafs[i] != nil {
@@ -739,7 +746,7 @@ func (n *TreeNode) IsLeaf() bool {
 	return n.isLeaf
 }
 
-func (n *TreeNode) Expand(adapter db.DataAdapter) error {
+func (n *TreeNode) expand(adapter db.DataAdapter) error {
 	if n.isCollapsed() == false {
 		return common.ErrIllegalStatus
 	}
@@ -752,7 +759,7 @@ func (n *TreeNode) Expand(adapter db.DataAdapter) error {
 	return err
 }
 
-func (n *TreeNode) Collapse(adapter db.DataAdapter) error {
+func (n *TreeNode) collapse(adapter db.DataAdapter) error {
 	if n.isCollapsed() {
 		return nil
 	}
@@ -862,7 +869,7 @@ func (n *TreeNode) fromSerialNode(adapter db.DataAdapter, sn *serialNode) {
 		for i := 0; i < childrenLength; i++ {
 			if sn.ChildrenOrLeafs[i] != nil {
 				n.Children[i] = NewTreeNode()
-				_ = n.Children[i].PutValue(adapter, []byte(""), sn.ChildrenOrLeafs[i])
+				_ = n.Children[i].putValue(adapter, []byte(""), sn.ChildrenOrLeafs[i])
 			}
 		}
 	}
@@ -1028,12 +1035,12 @@ func (n *TreeNode) clearAncestors(prefix []byte) error {
 	return nil
 }
 
-func (n *TreeNode) PutValue(adapter db.DataAdapter, prefix []byte, hashs []byte) error {
+func (n *TreeNode) putValue(adapter db.DataAdapter, prefix []byte, hashs []byte) error {
 	if n.isCollapsed() {
 		if adapter == nil {
 			return common.ErrNoAdapter
 		}
-		if err := n.Expand(adapter); err != nil {
+		if err := n.expand(adapter); err != nil {
 			return common.ErrIllegalStatus
 		}
 	}
@@ -1046,7 +1053,7 @@ func (n *TreeNode) PutValue(adapter db.DataAdapter, prefix []byte, hashs []byte)
 			return common.ErrIllegalParams
 		}
 	}
-	n.Branchs[string(prefix)] = hashs
+	n.Branchs[string(prefix)] = common.CopyBytes(hashs)
 	return nil
 }
 
@@ -1076,15 +1083,6 @@ func (n *TreeNode) putChild(index int, child *TreeNode, appendCheck bool) error 
 	return nil
 }
 
-func (n *TreeNode) AppendChild(index int, child *TreeNode) error {
-	return n.putChild(index, child, true)
-}
-
-// It is only used when generating incomplete nodes, such as recovery of proof
-func (n *TreeNode) PutChild(index int, child *TreeNode) error {
-	return n.putChild(index, child, false)
-}
-
 func (n *TreeNode) putLeaf(index int, value []byte, appendCheck bool) error {
 	if n.isCollapsed() {
 		return common.ErrIllegalStatus
@@ -1104,7 +1102,7 @@ func (n *TreeNode) putLeaf(index int, value []byte, appendCheck bool) error {
 			}
 		}
 	}
-	n.Leafs[index] = value
+	n.Leafs[index] = common.CopyBytes(value)
 	// fmt.Printf("putLeaf(%x, %x, %t)\n%v\n", index, value, appendCheck, n)
 	prefix, _ := ToBinary(byte(index), ValueKeyLength)
 	_ = n.clearAncestors(prefix)
@@ -1112,13 +1110,13 @@ func (n *TreeNode) putLeaf(index int, value []byte, appendCheck bool) error {
 	return nil
 }
 
-func (n *TreeNode) MergeProof(adapter db.DataAdapter, index int, value []byte, child *TreeNode,
+func (n *TreeNode) mergeProof(adapter db.DataAdapter, index int, value []byte, child *TreeNode,
 	proof *common.MerkleProofs) error {
 	if n == nil {
 		return common.ErrNil
 	}
 	if n.isLeaf {
-		n.Leafs[index] = value
+		n.Leafs[index] = common.CopyBytes(value)
 	} else {
 		n.Children[index] = child
 	}
@@ -1137,16 +1135,16 @@ func (n *TreeNode) MergeProof(adapter db.DataAdapter, index int, value []byte, c
 					// leaf of tree in this node (height==4)
 					p, _ := ToByte(bs)
 					if n.isLeaf {
-						n.Leafs[p] = h.Bytes()
+						n.Leafs[p] = common.CopyBytes(h[:])
 					} else {
 						if n.Children[p] == nil {
 							// Creating a node with only root hash is equal to a collapsed node
 							n.Children[p] = NewTreeNode()
-							if err := n.Children[p].PutValue(adapter, nil, h.Bytes()); err != nil {
+							if err := n.Children[p].putValue(adapter, nil, h.Bytes()); err != nil {
 								return err
 							}
 						} else {
-							if err := n.Children[p].PutValue(adapter, nil, h.Bytes()); err != nil {
+							if err := n.Children[p].putValue(adapter, nil, h.Bytes()); err != nil {
 								return err
 							}
 						}
@@ -1154,7 +1152,7 @@ func (n *TreeNode) MergeProof(adapter db.DataAdapter, index int, value []byte, c
 				}
 			} else {
 				// the middle layer node of merkle tree
-				if err := n.PutValue(adapter, bs, h.Bytes()); err != nil {
+				if err := n.putValue(adapter, bs, h.Bytes()); err != nil {
 					return err
 				}
 			}
@@ -1182,7 +1180,7 @@ func (n *TreeNode) traceDescendant(adapter db.DataAdapter, prefixString []byte, 
 		return false, nil, false, nil
 	}
 	if n.isCollapsed() {
-		if err = n.Expand(adapter); err != nil {
+		if err = n.expand(adapter); err != nil {
 			return false, nil, false, err
 		}
 	}
@@ -1284,7 +1282,7 @@ func (n *TreeNode) HashAtPrefix(prefix []byte) (hashAtPrefix []byte, leftIsNil b
 	}
 	r, exist := n.Branchs[string(prefix)]
 	if exist && r != nil {
-		return r, false, false, nil
+		return common.CopyBytes(r), false, false, nil
 	}
 
 	child := make([]byte, len(prefix)+1)
@@ -1343,7 +1341,7 @@ func (n *TreeNode) HashAtPrefix(prefix []byte) (hashAtPrefix []byte, leftIsNil b
 	}
 
 	h := common.HashPair(left, right)
-	n.Branchs[string(prefix)] = h
+	n.Branchs[string(prefix)] = common.CopyBytes(h)
 	return h, leftIsNil, rightIsNil, nil
 }
 
@@ -1352,7 +1350,7 @@ func (n *TreeNode) LeafHash(index int) (leafHash []byte, err error) {
 		return nil, common.ErrIllegalParams
 	}
 	if n.isLeaf {
-		return n.Leafs[index], nil
+		return common.CopyBytes(n.Leafs[index]), nil
 	} else {
 		if n.Children[index] == nil {
 			return nil, nil
@@ -1366,7 +1364,7 @@ func (n *TreeNode) LeafHash(index int) (leafHash []byte, err error) {
 // rootHash: root hash of current node
 // toBeProof: hash of prooved position (specified by index)
 // proof: merkle proof
-func (n *TreeNode) MakeProof(index int) (rootHash []byte, toBeProof []byte, proof *common.MerkleProofs, err error) {
+func (n *TreeNode) makeProof(index int) (rootHash []byte, toBeProof []byte, proof *common.MerkleProofs, err error) {
 	if n == nil {
 		return nil, nil, nil, common.ErrNil
 	}
@@ -1381,7 +1379,7 @@ func (n *TreeNode) MakeProof(index int) (rootHash []byte, toBeProof []byte, proo
 		return nil, nil, nil, common.ErrNil
 	}
 
-	toBeProof = n.Leafs[index]
+	toBeProof = common.CopyBytes(n.Leafs[index])
 	proof = common.NewMerkleProofs()
 
 	var left, right []byte
@@ -1576,7 +1574,7 @@ func (n *TreeNode) decodeDescendants(adapter db.DataAdapter, vr rtl.ValueReader)
 				n.Children[i] = nil
 			} else {
 				n.Children[i] = NewTreeNode()
-				if err = n.Children[i].PutValue(adapter, []byte(""), hashslice[i]); err != nil {
+				if err = n.Children[i].putValue(adapter, []byte(""), hashslice[i]); err != nil {
 					return err
 				}
 			}

@@ -253,12 +253,11 @@ func (r *RevertableTrie) PreCommit() ([]byte, error) {
 }
 
 func (r *RevertableTrie) Rollback() {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
 	if r == nil {
 		return
 	}
+	r.lock.Lock()
+	defer r.lock.Unlock()
 	r.Live = nil
 	r.chkpts = nil
 }
@@ -394,6 +393,15 @@ func (h *RevertableHistoryTree) PreCollapseBefore(key uint64) error {
 	return h.Live.CollapseBefore(key)
 }
 
+func (h *RevertableHistoryTree) CollapseBefore(key uint64) error {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	if h.Origin != nil {
+		return h.Origin.CollapseBefore(key)
+	}
+	return nil
+}
+
 func (h *RevertableHistoryTree) Commit() error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
@@ -403,4 +411,66 @@ func (h *RevertableHistoryTree) Commit() error {
 	}
 	h.chkpts = nil
 	return h.Origin.Commit()
+}
+
+func (h *RevertableHistoryTree) Has(key uint64) bool {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	return h.Origin.Has(key)
+}
+
+func (h *RevertableHistoryTree) Get(key uint64) (value []byte, exist bool) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	return h.Origin.Get(key)
+}
+
+func (h *RevertableHistoryTree) GetProof(key uint64) (value []byte, proofs ProofChain, ok bool) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	return h.Origin.GetProof(key)
+}
+
+func (h *RevertableHistoryTree) MergeProof(key uint64, value []byte, proofs ProofChain) error {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	if err := h._checkLive(); err != nil {
+		return err
+	}
+	return h.Live.MergeProof(key, value, proofs)
+}
+
+func (h *RevertableHistoryTree) Rebase(dbase db.Database) (*RevertableHistoryTree, error) {
+	if h == nil {
+		return nil, nil
+	}
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	origin, err := h.Origin.Rebase(dbase)
+	if err != nil {
+		return nil, err
+	}
+	if origin == nil {
+		return nil, nil
+	}
+	return &RevertableHistoryTree{Origin: origin}, nil
+}
+
+func (h *RevertableHistoryTree) Rollback() {
+	if h == nil {
+		return
+	}
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	h.Live = nil
+	h.chkpts = nil
+}
+
+func (h *RevertableHistoryTree) String() string {
+	if h == nil {
+		return "RevertableHistoryTree<nil>"
+	}
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	return fmt.Sprintf("RevertableHistoryTree{Origin:%s Live:%s}", h.Origin._info(), h.Live._info())
 }
