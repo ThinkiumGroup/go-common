@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"strconv"
 	"sync"
 
 	"github.com/ThinkiumGroup/go-common"
@@ -118,7 +117,7 @@ func NewTrie(hash []byte, nadapter db.DataAdapter, vadapter db.DataAdapter, valu
 	hasher NodeValueHasher, expander NodeValueExpander) *Trie {
 	codec, err := rtl.NewStructCodec(valueType)
 	if err != nil {
-		panic(common.NewDvppError("New StructCodec error:", err))
+		panic(fmt.Errorf("new StructCodec error: %v", err))
 	}
 	return NewTrieWithValueFuncs(hash, nadapter, vadapter, codec.Encode, codec.Decode, hasher, expander)
 }
@@ -239,6 +238,19 @@ func (t *Trie) HashValue() ([]byte, error) {
 	return t.hashLocked()
 }
 
+func (t *Trie) CommitAndHash() ([]byte, error) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	if err := t.commitLocked(); err != nil {
+		return nil, fmt.Errorf("commit failed: %v", err)
+	}
+	root, err := t.hashLocked()
+	if err != nil {
+		return nil, fmt.Errorf("hash failed: %v", err)
+	}
+	return root, nil
+}
+
 func (t *Trie) getLocked(key []byte) (interface{}, bool) {
 	prefix := keyToPrefix(key)
 	return t.get(t.root, prefix, 0, nil)
@@ -279,8 +291,8 @@ func (t *Trie) get(startNode *node, prefixString []byte, offset int, trace *[]no
 	inPrefixLength := len(suffix)
 	matchLength := startNode.matchPrefix(suffix)
 	if matchLength > startPrefixLength || matchLength > inPrefixLength {
-		panic("matchLength=" + strconv.Itoa(matchLength) + ", startPrefixLength=" + strconv.Itoa(startPrefixLength) +
-			", inPrefixLength=" + strconv.Itoa(inPrefixLength))
+		panic(fmt.Errorf("matchLength=%d, startPrefixLength=%d, inPrefixLength=%d",
+			matchLength, startPrefixLength, inPrefixLength))
 	}
 	inRemains := inPrefixLength - matchLength
 	startRemains := startPrefixLength - matchLength
@@ -374,8 +386,8 @@ func (t *Trie) insert(startNode *node, prefixString []byte, offset int, value in
 	inPrefixLength := len(suffix)
 	matchLength := startNode.matchPrefix(suffix)
 	if matchLength > startPrefixLength || matchLength > inPrefixLength {
-		panic("matchLegnth=" + strconv.Itoa(matchLength) + ", startPrefixLength=" + strconv.Itoa(startPrefixLength) +
-			", inPrefixLength=" + strconv.Itoa(inPrefixLength))
+		panic(fmt.Errorf("matchLegnth=%d, startPrefixLength=%d, inPrefixLength=%d",
+			matchLength, startPrefixLength, inPrefixLength))
 	}
 	inRemains := inPrefixLength - matchLength
 	startRemains := startPrefixLength - matchLength
@@ -420,7 +432,7 @@ func (t *Trie) insert(startNode *node, prefixString []byte, offset int, value in
 	// add startNode to newNode.children[startNode.prefix[matchLength]]
 	newNode.setChild(int(startNode.prefix[matchLength]), startNode)
 	if err := startNode.chopPrefixHead(matchLength + 1); err != nil {
-		panic("startNode.chopPrefixHead(" + strconv.Itoa(matchLength+1) + ") error: " + err.Error())
+		panic(fmt.Errorf("startNode.chopPrefixHead(%d) error: %v", matchLength+1, err.Error()))
 	}
 
 	if inRemains == 0 {
@@ -491,19 +503,6 @@ func (t *Trie) delete(startNode *node, prefixString []byte, offset int) (changed
 	if err := t.fullExpand(startNode); err != nil {
 		return false, false, startNode
 	}
-	// if startNode.isCollapsed() {
-	// 	if err := t.expandNode(startNode); err != nil {
-	// 		log.Errorf("expand %s error: %s", startNode, err)
-	// 		return false, false, err
-	// 	}
-	// }
-	//
-	// if startNode.isValueCollapsed() {
-	// 	if err := t.expandNodeValue(startNode); err != nil {
-	// 		log.Errorf("expand node value %s error: %s", startNode, err)
-	// 		return false, false, startNode
-	// 	}
-	// }
 
 	// return unchange if current node is empty
 	if startNode.isEmpty() {
@@ -524,8 +523,8 @@ func (t *Trie) delete(startNode *node, prefixString []byte, offset int) (changed
 	inPrefixLength := len(suffix)
 	matchLength := startNode.matchPrefix(suffix)
 	if matchLength > startPrefixLength || matchLength > inPrefixLength {
-		panic("matchLegnth=" + strconv.Itoa(matchLength) + ", startPrefixLength=" + strconv.Itoa(startPrefixLength) +
-			", inPrefixLength=" + strconv.Itoa(inPrefixLength))
+		panic(fmt.Errorf("matchLegnth=%d, startPrefixLength=%d, inPrefixLength=%d",
+			matchLength, startPrefixLength, inPrefixLength))
 	}
 	inRemains := inPrefixLength - matchLength
 	startRemains := startPrefixLength - matchLength
@@ -559,34 +558,6 @@ func (t *Trie) delete(startNode *node, prefixString []byte, offset int) (changed
 		}
 
 		startNode.mergeTheLastChild(t)
-		// childid := -1
-		// for i := 0; i < childrenLength; i++ {
-		// 	if startNode.children[i] != nil {
-		// 		if childid == -1 {
-		// 			// Record the first child node ID found
-		// 			childid = i
-		// 		} else {
-		// 			// If the child node has been found before, clear the record (not only one child node)
-		// 			childid = -1
-		// 			break
-		// 		}
-		// 	}
-		// }
-		// if childid >= 0 {
-		// 	// only one child left
-		// 	// When there is only one child node, the child node should be merged to the current node
-		// 	childnode := startNode.children[childid]
-		// 	if err := t.fullExpand(childnode); err != nil {
-		// 		// wrong data, should panic?
-		// 		return true, false, oldValue
-		// 	}
-		// 	// Setting the location of the original child node nil must be completed before the merging,
-		// 	// because the merging may put the child of the original child in the corresponding location,
-		// 	// and setting the location to nil after the merging will cause data loss
-		// 	startNode.children[childid] = nil
-		// 	startNode.mergeNode(childid, childnode)
-		// 	return true, false, oldValue
-		// }
 
 		return nchanged, false, oldValue
 	}
@@ -598,16 +569,6 @@ func (t *Trie) expandTrie(node *node) error {
 	if err := t.fullExpand(node); err != nil {
 		return err
 	}
-	// if node.isCollapsed() {
-	// 	if err := t.expandNode(node); err != nil {
-	// 		return err
-	// 	}
-	// }
-	// if node.isValueCollapsed() {
-	// 	if err := t.expandNodeValue(node); err != nil {
-	// 		return err
-	// 	}
-	// }
 	for i := 0; i < childrenLength; i++ {
 		if node.children[i] != nil {
 			if err := t.expandTrie(node.children[i]); err != nil {
@@ -630,14 +591,14 @@ func (t *Trie) expandNode(node *node) error {
 	hashes := node.hash
 	nodebytes, err := t.nodeAdapter.Load(hashes)
 	if err != nil {
-		return common.NewDvppError(fmt.Sprintf("load %s data error", node), err)
+		return fmt.Errorf("load %s data error: %v", node, err)
 	}
 	buf := rtl.NewValueReader(bytes.NewBuffer(nodebytes), 256)
 	if err = rtl.Decode(buf, node); err != nil {
-		return common.NewDvppError(fmt.Sprintf("decode nodebytes@[%x] error", hashes), err)
+		return fmt.Errorf("decode nodebytes@[%x] error: %v", hashes, err)
 	}
 	if node.inErrorStatus() {
-		log.Warnf("[BUGFIX] an error node found: %v, nodeHash: %x, nodeValue: %x", node, hashes, nodebytes)
+		log.Warnf("[BUGFIX] an error node found:%v, nodeHash:%x, nodeValue:%x", node, hashes, nodebytes)
 		// oldprefix := node.prefix
 		// node.setPrefix(nil)
 		// log.Warnf("[BUGFIX] remove prefix: %x, nodeHash set to empty", oldprefix)
@@ -740,13 +701,13 @@ func (t *Trie) saveOneNode(node *node) error {
 	// save node value
 	vh, vb, err := node.valueHash()
 	if err != nil {
-		return common.NewDvppError("encode node value error", err)
+		return fmt.Errorf("encode node value error: %v", err)
 	}
 	// if len(hash)<common.HashLength, we don't save it to database
 	if vh != nil && len(vh) >= common.HashLength {
 		if t.valueAdapter != nil {
 			if err = t.valueAdapter.Save(vh, vb); err != nil {
-				return common.NewDvppError(fmt.Sprintf("save node value@[%x] error", vh), err)
+				return fmt.Errorf("save node value@[%x] error: %v", vh, err)
 			}
 		}
 	}
@@ -756,16 +717,16 @@ func (t *Trie) saveOneNode(node *node) error {
 	buf.Reset()
 	err = rtl.Encode(node, buf)
 	if err != nil {
-		return common.NewDvppError(fmt.Sprintf("encode %s error", node), err)
+		return fmt.Errorf("encode %s error: %v", node, err)
 	}
 
 	h, err := node.HashValue()
 	if err != nil {
-		return common.NewDvppError(fmt.Sprintf("hash %s error", node), err)
+		return fmt.Errorf("hash %s error: %v", node, err)
 	}
 	if t.nodeAdapter != nil {
 		if err = t.nodeAdapter.Save(h, buf.Bytes()); err != nil {
-			return common.NewDvppError(fmt.Sprintf("save node@[%x] error", h), err)
+			return fmt.Errorf("save node@[%x] error: %v", h, err)
 		}
 	}
 	// log.Debugf("saved %s: %x", node, h)
@@ -878,7 +839,7 @@ func (t *Trie) getProofLocked(key []byte) (val interface{}, proofs ProofChain, o
 
 		err := nd.nodeInPos.GetProof(ProofType(nodeChild.pos), &proofs)
 		if err != nil {
-			log.Error("Fail to get proof from the child. ", "Err:", err)
+			log.Errorf("get proof from the child failed: %v", err)
 			return val, nil, false
 		}
 
@@ -990,4 +951,9 @@ func (t *Trie) IterateAll(noNil bool, callback func(key []byte, value interface{
 		}
 	}
 	return
+}
+
+func (t *Trie) ReversedValueIterator() ValueIterator {
+	newt := t.Clone()
+	return newReversedValueIterator(newt)
 }

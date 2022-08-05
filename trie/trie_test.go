@@ -23,6 +23,16 @@ func (v *trieValue) Clone() *trieValue {
 	return &trieValue{A: v.A, B: v.B}
 }
 
+func (v *trieValue) Equal(o *trieValue) bool {
+	if v == o {
+		return true
+	}
+	if v == nil || o == nil {
+		return false
+	}
+	return v.A == o.A && v.B == o.B
+}
+
 func (v *trieValue) String() string {
 	if v == nil {
 		return "Value<nil>"

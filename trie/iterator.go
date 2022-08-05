@@ -17,6 +17,8 @@ package trie
 import (
 	"fmt"
 	"sync"
+
+	"github.com/ThinkiumGroup/go-common/log"
 )
 
 type (
@@ -213,9 +215,9 @@ outer:
 			tn = s.stack[len(s.stack)-1]
 		}
 	}
-	s.ended = true
-	s.current = nil
-	return nil
+	// s.ended = true
+	// s.current = nil
+	// return nil
 }
 
 func newNodeIterator(trie *Trie) *nodeIterator {
@@ -270,10 +272,14 @@ func NewValueIterator(trie *Trie) *trieValueIterator {
 func (it *trieValueIterator) Next() bool {
 	node := it.nit.Next(func(t *Trie, n *node) bool {
 		if n.isCollapsed() {
-			t.expandNode(n)
+			if err := t.expandNode(n); err != nil {
+				log.Errorf("expand node %s failed: %v", n, err)
+			}
 		}
 		if n.isValueCollapsed() {
-			t.expandNodeValue(n)
+			if err := t.expandNodeValue(n); err != nil {
+				log.Errorf("expand value %s failed: %v", n, err)
+			}
 		}
 		return n.hasValue()
 	})
@@ -296,8 +302,106 @@ func (it *trieValueIterator) Current() (key []byte, value interface{}) {
 		return nil, node.value
 	}
 	if len(prefix)%2 != 0 {
-		panic(fmt.Sprintf("prefix [%x] length:%d cannot convert to keystring, oldprefix:%x node.prefix:%x",
+		panic(fmt.Errorf("prefix [%x] length:%d cannot convert to keystring, oldprefix:%x node.prefix:%x",
 			prefix, len(prefix), it.nit.CurrentPrefix(), node.prefix))
 	}
 	return prefixToKeystring(prefix), node.value
+}
+
+type (
+	reversedTrace struct {
+		node  *node
+		index int
+	}
+
+	reversedValueIterator struct {
+		trie   *Trie
+		stack  []*reversedTrace
+		status int // 0: not start, 1: started, 2: ended
+		lock   sync.Mutex
+	}
+)
+
+func newReversedValueIterator(tr *Trie) *reversedValueIterator {
+	return &reversedValueIterator{trie: tr}
+}
+
+func (rt *reversedValueIterator) Current() (key []byte, value interface{}) {
+	rt.lock.Lock()
+	defer rt.lock.Unlock()
+	if rt.status != 1 {
+		return nil, nil
+	}
+
+	if len(rt.stack) == 0 {
+		return nil, nil
+	}
+
+	var prefix []byte // nibbles
+	for i := 0; i < len(rt.stack); i++ {
+		if len(rt.stack[i].node.prefix) > 0 {
+			prefix = append(prefix, rt.stack[i].node.prefix...)
+		}
+		if i < len(rt.stack)-1 && rt.stack[i].index >= 0 && rt.stack[i].index < childrenLength {
+			prefix = append(prefix, byte(rt.stack[i].index))
+		}
+	}
+	return prefixToKeystring(prefix), rt.stack[len(rt.stack)-1].node.value
+}
+
+func (rt *reversedValueIterator) Next() bool {
+	rt.lock.Lock()
+	defer rt.lock.Unlock()
+	if rt.status > 1 {
+		return false
+	}
+	if rt.status == 0 {
+		if rt.trie.root != nil {
+			rt.status = 1
+			rt.stack = append(rt.stack, &reversedTrace{node: rt.trie.root, index: childrenLength})
+		} else {
+			rt.status = 2
+			return false
+		}
+	}
+	for {
+		if len(rt.stack) == 0 {
+			rt.status = 2
+			return false
+		}
+		last := rt.stack[len(rt.stack)-1]
+		if last.index < 0 {
+			// last.node.value just checked
+			_ = last.node.collapse()
+			rt.stack = rt.stack[:len(rt.stack)-1]
+		} else {
+			if last.node.isCollapsed() {
+				_ = rt.trie.expandNode(last.node)
+			}
+			if last.node.isValueCollapsed() {
+				_ = rt.trie.expandNodeValue(last.node)
+			}
+			last.index--
+			for last.index >= 0 {
+				if last.node.children[last.index] == nil {
+					// nil child, ignore
+					last.index--
+				} else {
+					// push child node to stack
+					rt.stack = append(rt.stack, &reversedTrace{node: last.node.children[last.index], index: childrenLength})
+					break
+				}
+			}
+			if last.index < 0 {
+				// check value when the reversedTrace just before poping out
+				if last.node.hasValue() {
+					return true
+				} else {
+					// shortcut, pop node if there's no value
+					_ = last.node.collapse()
+					rt.stack = rt.stack[:len(rt.stack)-1]
+				}
+			}
+		}
+	}
 }

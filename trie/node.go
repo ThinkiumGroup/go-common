@@ -21,7 +21,7 @@ import (
 	"io"
 	"reflect"
 
-	common "github.com/ThinkiumGroup/go-common"
+	"github.com/ThinkiumGroup/go-common"
 	"github.com/ThinkiumGroup/go-common/db"
 	"github.com/ThinkiumGroup/go-common/hexutil"
 	"github.com/ThinkiumGroup/go-common/log"
@@ -89,13 +89,13 @@ func (k *KeyPart) UnmarshalText(input []byte) error {
 
 func (k KeyPart) MarshalText() ([]byte, error) {
 	if len(k) == 0 {
-		return []byte(k), nil
+		return k, nil
 	}
 	return hexutil.Bytes(k).MarshalText()
 }
 
 func (k KeyPart) Bytes() []byte {
-	return []byte(k)
+	return k
 }
 
 type ChildFlag [2]byte
@@ -142,7 +142,7 @@ func newNodeHeader(n *node) *NodeHeader {
 	ret := &NodeHeader{}
 	ret.NT = n.ntype()
 	if ret.NT.HasPrefix() {
-		ret.KeyString = KeyPart(prefixToKeystring(n.prefix))
+		ret.KeyString = prefixToKeystring(n.prefix)
 	}
 	if ret.NT.HasChildren() {
 		for i := 0; i < childrenLength; i++ {
@@ -257,20 +257,20 @@ type node struct {
 	value    interface{}
 
 	// cache
-	dirty       bool   `json:"-"` // node data has been changed
-	hash        []byte `json:"-"` // initial hash or cache of current node hash
-	headerhash  []byte `json:"-"` // cache of node header hash
-	valuehash   []byte `json:"-"` // cache of value hash
-	valuestream []byte `json:"-"` // cache of serialized value stream
-	generation  uint64 `json:"-"` // created generation
+	dirty       bool   // node data has been changed
+	hash        []byte // initial hash or cache of current node hash
+	headerhash  []byte // cache of node header hash
+	valuehash   []byte // cache of value hash
+	valuestream []byte // cache of serialized value stream
+	generation  uint64 // created generation
 
-	valueEncode   NodeValueEncode   `json:"-"` // Used to serialize the value in node to io.Writer as the value to save
-	valueDecode   NodeValueDecode   `json:"-"` // Deserialize the data from database to node value in the trie
-	valueHasher   NodeValueHasher   `json:"-"` // To calculate the hash of the node value, as part of the key when save to database
-	valueExpander NodeValueExpander `json:"-"` // Used to return the serialization of the value corresponding to the specified valuehash
+	valueEncode   NodeValueEncode   // Used to serialize the value in node to io.Writer as the value to save
+	valueDecode   NodeValueDecode   // Deserialize the data from database to node value in the trie
+	valueHasher   NodeValueHasher   // To calculate the hash of the node value, as part of the key when save to database
+	valueExpander NodeValueExpander // Used to return the serialization of the value corresponding to the specified valuehash
 }
 
-func DefaultValueHasher(value interface{}, valuebytes []byte) ([]byte, error) {
+func DefaultValueHasher(value interface{}, _ []byte) ([]byte, error) {
 	// if len(valuebytes) < common.HashLength {
 	// 	return valuebytes, nil
 	// }

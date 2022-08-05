@@ -109,6 +109,8 @@ var (
 	// prefix of Sub Confirmed Info Trie
 	KPSubConfirmedNode  = []byte("ca")
 	KPSubConfirmedValue = []byte("cb")
+	KPRestartHisNode    = []byte("cd")
+	KPRestartHisValue   = []byte("cg")
 
 	// the earliest Cursor on the main chain received by the current node and has not yet
 	// issued a reward, the reward can be issue from this height to process the Request

@@ -1331,7 +1331,7 @@ func (h Hash) IsEmptyNode() bool {
 }
 
 func (h Hash) Invalid() bool {
-	return h == NilHash || h == EmptyNodeHash
+	return h == EmptyHash || h == NilHash || h == EmptyNodeHash
 }
 
 func (h *Hash) Slice() []byte {

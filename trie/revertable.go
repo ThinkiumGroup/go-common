@@ -96,6 +96,13 @@ func (r *RevertableTrie) HashValue() (hashValue []byte, err error) {
 	return r.Origin.HashValue()
 }
 
+func (r *RevertableTrie) CommitAndHash() ([]byte, error) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r._prepareCommit()
+	return r.Origin.CommitAndHash()
+}
+
 func (r *RevertableTrie) Get(key []byte) (value interface{}, ok bool) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
@@ -167,15 +174,18 @@ func (r *RevertableTrie) IsDirty() bool {
 	return r.isDirtyLocked()
 }
 
-func (r *RevertableTrie) Commit() error {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
+func (r *RevertableTrie) _prepareCommit() {
 	if r.isDirtyLocked() {
 		r.Origin = r.Live
 		r.Live = nil
 	}
 	r.chkpts = nil
+}
+
+func (r *RevertableTrie) Commit() error {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r._prepareCommit()
 	return r.Origin.Commit()
 }
 
@@ -350,6 +360,13 @@ func (h *RevertableHistoryTree) HashValue() ([]byte, error) {
 	return h.Origin.HashValue()
 }
 
+func (h *RevertableHistoryTree) CommitAndHash() ([]byte, error) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	h._prepareCommit()
+	return h.Origin.CommitAndHash()
+}
+
 func (h *RevertableHistoryTree) PreHashValue() ([]byte, error) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
@@ -402,14 +419,18 @@ func (h *RevertableHistoryTree) CollapseBefore(key uint64) error {
 	return nil
 }
 
-func (h *RevertableHistoryTree) Commit() error {
-	h.lock.Lock()
-	defer h.lock.Unlock()
+func (h *RevertableHistoryTree) _prepareCommit() {
 	if h.Live != nil {
 		h.Origin = h.Live
 		h.Live = nil
 	}
 	h.chkpts = nil
+}
+
+func (h *RevertableHistoryTree) Commit() error {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	h._prepareCommit()
 	return h.Origin.Commit()
 }
 

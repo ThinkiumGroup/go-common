@@ -310,6 +310,19 @@ func (h *HistoryTree) HashValue() ([]byte, error) {
 	return h._hashValue()
 }
 
+func (h *HistoryTree) CommitAndHash() ([]byte, error) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	if err := h._commit(); err != nil {
+		return nil, fmt.Errorf("commit failed: %v", err)
+	}
+	root, err := h._hashValue()
+	if err != nil {
+		return nil, fmt.Errorf("hash failed: %v", err)
+	}
+	return root, nil
+}
+
 func (h *HistoryTree) CollapseBefore(key uint64) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
