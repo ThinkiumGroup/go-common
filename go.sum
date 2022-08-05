@@ -1,7 +1,7 @@
-github.com/ThinkiumGroup/go-cipher v1.0.204 h1:eXrE1QOL/zLo/vHoGHegHedl2ngYIkXFjj+M2fsVLw8=
-github.com/ThinkiumGroup/go-cipher v1.0.204/go.mod h1:StQLwhaU/GAGX9o8GoLxWlUT/HNiCVNhY1TQTvvZ95M=
-github.com/ThinkiumGroup/go-ecrypto v1.2.4 h1:+V61sNs6VtHUeQAq82+PL8l0BffOQLLAgdluJbfUN1c=
-github.com/ThinkiumGroup/go-ecrypto v1.2.4/go.mod h1:LyETut4AaL1viEouw67FQXuObFsKuj0FkBLi8Ct+a/Y=
+github.com/ThinkiumGroup/go-cipher v1.0.206 h1:7IIZu/QlQI3nKRxxg4mj0uSZ1R1o4AknD4rxUyj76KI=
+github.com/ThinkiumGroup/go-cipher v1.0.206/go.mod h1:9I5rvF0DNlYA53k8akDu1XTSiyYZ5glsiBYITAhdBtY=
+github.com/ThinkiumGroup/go-ecrypto v1.2.5 h1:+5HyojHTJuHCoNbzIYPC44umhPTmbdIlIO06o+1/6Cs=
+github.com/ThinkiumGroup/go-ecrypto v1.2.5/go.mod h1:LyETut4AaL1viEouw67FQXuObFsKuj0FkBLi8Ct+a/Y=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
