@@ -694,3 +694,89 @@ func TestHistoryTree_MergeProof(t *testing.T) {
 // 	}
 // 	t.Logf("ok, history tree: %s", htree)
 // }
+
+func TestHistoryTree_Chop(t *testing.T) {
+	count := uint64(3000)
+	dbase := db.NewMemDB()
+	rootMap := make(map[uint64][]byte)
+	valMap := make(map[uint64][]byte)
+	tree, err := NewHistoryTree(dbase, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key := uint64(0); key < count; key++ {
+		val := randomBytes(common.HashLength)
+		if err := tree.Append(key, val); err != nil {
+			t.Fatalf("append(key:%d, val:%x) failed: %v", key, val, err)
+		}
+		valMap[key] = val
+		root, err := tree.CommitAndHash()
+		if err != nil {
+			t.Fatalf("commit and hash at key:%d failed: %v", key, err)
+		}
+		rootMap[key] = root
+		if key > 0 {
+			if err := _examChop(tree, rootMap, valMap, key); err != nil {
+				t.Fatalf("_examChop(%d) failed: %v", key, err)
+			} else {
+				t.Logf("_examChop(%d) ok", key)
+			}
+		}
+	}
+	t.Log("ok")
+}
+
+func _examChop(tree *HistoryTree, rootMap, valMap map[uint64][]byte, key uint64) error {
+	i := uint64(0)
+	if key > 33 {
+		i = key - 33
+	}
+	for ; i < key; i++ {
+		choped, err := tree.Chop(i)
+		if err != nil {
+			return fmt.Errorf("chop(i:%d) %s failed: %v", i, tree, err)
+		}
+		root, err := choped.HashValue()
+		if err != nil {
+			return fmt.Errorf("chop(i:%d) %s hash failed: %v", i, choped, err)
+		}
+		exproot, _ := rootMap[i]
+		if !bytes.Equal(exproot, root) {
+			return fmt.Errorf("chop(i:%d) %s root %x not match with %x", i, choped, root, exproot)
+		}
+
+		val, proof, ok := choped.GetProof(i)
+		if !ok {
+			return fmt.Errorf("chop(i:%d) %s GetProof(%d) failed", i, choped, i)
+		}
+		if expval := valMap[i]; !bytes.Equal(val, expval) {
+			return fmt.Errorf("chop(i:%d) Proofs of %d, value:%x not match with %s", i, i, val, expval)
+		}
+		proofed, err := proof.Proof(common.BytesToHash(val))
+		if err != nil {
+			return fmt.Errorf("chop(i:%d) %s proofs:%s proof(%x) failed: %v", i, choped, proof, val, err)
+		}
+		if !bytes.Equal(proofed, root) {
+			return fmt.Errorf("chop(i:%d) %s proofs:%s proof(%x)=%x not match %x", i, choped, proof, val, proofed, root)
+		}
+
+		for j := i + 1; j < i+20 && j <= key; j++ {
+			val, _ := valMap[j]
+			if val == nil {
+				return fmt.Errorf("value of key:%d not found", j)
+			}
+			if err := choped.Append(j, val); err != nil {
+				return fmt.Errorf("jchoped(i:%d) %s append (key:%d val:%x) failed: %v", i, choped, j, val, err)
+			}
+			if jroot, err := choped.HashValue(); err != nil {
+				return fmt.Errorf("jchoped(i:%d) %s hash failed: %v", i, choped, err)
+			} else {
+				jexproot := rootMap[j]
+				if !bytes.Equal(jroot, jexproot) {
+					return fmt.Errorf("jchoped(i:%d) %s root %x not match with %x", i, choped, jroot, jexproot)
+				}
+			}
+		}
+	}
+	return nil
+}

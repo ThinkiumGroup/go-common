@@ -621,6 +621,23 @@ func ToByte(bs []byte) (byte, error) {
 	return b, nil
 }
 
+func (n *TreeNode) copy() (*TreeNode, error) {
+	if n == nil {
+		return nil, nil
+	}
+	root, _, _, err := n.HashAtPrefix(nil)
+	if err != nil {
+		return nil, err
+	}
+	if root == nil {
+		return nil, nil
+	}
+	node := NewTreeNode()
+	node.Branchs[""] = root
+	node.isLeaf = n.isLeaf
+	return node, nil
+}
+
 func (n *TreeNode) Reset() {
 	n.Branchs = make(map[string][]byte)
 	for i := 0; i < childrenLength; i++ {
@@ -1463,7 +1480,10 @@ func (n *TreeNode) makeProof(index int) (rootHash []byte, toBeProof []byte, proo
 	return
 }
 
-func (n TreeNode) MakeFullString(recursive bool) string {
+func (n *TreeNode) MakeFullString(recursive bool) string {
+	if n == nil {
+		return "<nil>"
+	}
 	buf := bytes.NewBuffer(nil)
 	for k, v := range n.Branchs {
 		if buf.Len() > 0 {
@@ -1525,11 +1545,11 @@ func (n TreeNode) MakeFullString(recursive bool) string {
 	}
 }
 
-func (n TreeNode) NoneRecursiveString() string {
+func (n *TreeNode) NoneRecursiveString() string {
 	return n.MakeFullString(false)
 }
 
-func (n TreeNode) String() string {
+func (n *TreeNode) String() string {
 	return n.MakeFullString(true)
 }
 
@@ -1626,4 +1646,119 @@ func (n *TreeNode) Deserialization(r io.Reader) (shouldBeNil bool, err error) {
 
 	err = n.decodeDescendants(nil, vr)
 	return
+}
+
+// return new TreeNode without any child or leaf after index
+func (n *TreeNode) _chop(index int, indexingChanged bool) (newnode *TreeNode, changed bool, err error) {
+	if n == nil || index < 0 {
+		return nil, false, nil
+	}
+	if index > (childrenLength - 1) {
+		return nil, false, errors.New("illegal index")
+	}
+	node := NewTreeNode()
+	node.isLeaf = n.isLeaf
+	if n.isLeaf {
+		if n.Leafs[index] == nil {
+			return nil, false, fmt.Errorf("no leaf value at index:%d", index)
+		}
+		for i := 0; i <= index; i++ {
+			node.Leafs[i] = common.CopyBytes(n.Leafs[i])
+		}
+		if index < (childrenLength-1) && n.Leafs[index+1] != nil {
+			changed = true
+		}
+	} else {
+		if n.Children[index] == nil {
+			return nil, false, fmt.Errorf("no child node at index:%d", index)
+		}
+		for i := 0; i <= index; i++ {
+			if n.Children[i] != nil {
+				child, err := n.Children[i].copy()
+				if err != nil {
+					return nil, false, fmt.Errorf("copy child index:%d failed: %v", i, err)
+				}
+				node.Children[i] = child
+			}
+		}
+		if index < (childrenLength-1) && n.Children[index+1] != nil {
+			changed = true
+		}
+	}
+
+	choped := make(map[string]struct{})
+	i := index + 1
+	if indexingChanged {
+		i = index
+	}
+	for ; i < childrenLength; i = i + 2 {
+		prefix, _ := ToBinary(byte(i), ValueKeyLength)
+		for j := 0; j <= 3; j++ {
+			choped[string(prefix[:3-j])] = struct{}{}
+		}
+	}
+	for prefix, h := range n.Branchs {
+		if _, exist := choped[prefix]; exist {
+			changed = true
+		} else {
+			node.Branchs[prefix] = h
+		}
+	}
+	return node, changed, nil
+}
+
+func (h *HistoryTree) Chop(byKey uint64) (*HistoryTree, error) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	prefix := heightToPrefix(byKey)
+	cursor := h.root
+	var newroot, lastnode, newnode *TreeNode
+	var hasChanged bool
+	var lastChangedI int
+	var err error
+	for i, index := range prefix {
+		if cursor == nil {
+			return nil, fmt.Errorf("no more node for index:%d of %d", i, prefix)
+		}
+		if cursor.isCollapsed() {
+			if err = cursor.expand(h.adapter); err != nil {
+				return nil, fmt.Errorf("expand node of index:%d prefix:%d failed: %v", i, prefix, err)
+			}
+		}
+		var changed bool
+		newnode, changed, err = cursor._chop(int(index), false)
+		if err != nil || newnode == nil {
+			return nil, fmt.Errorf("chop index:%d of %d failed: %v", i, prefix, err)
+		}
+		if changed {
+			hasChanged = changed
+			lastChangedI = i
+		}
+		if !cursor.isLeaf {
+			cursor = cursor.Children[int(index)]
+		}
+		if i == 0 {
+			newroot = newnode
+		} else {
+			lastnode.Children[prefix[i-1]] = newnode
+		}
+		lastnode = newnode
+	}
+
+	if hasChanged {
+		cursor = newroot
+		for i := 0; i < lastChangedI; i++ {
+			changedPrefix, _ := ToBinary(prefix[i], ValueKeyLength)
+			for j := 0; j <= 3; j++ {
+				delete(cursor.Branchs, string(changedPrefix[:3-j]))
+			}
+			cursor = cursor.Children[prefix[i]]
+		}
+	}
+
+	return &HistoryTree{
+		expecting: byKey + 1,
+		root:      newroot,
+		adapter:   h.adapter,
+	}, nil
 }
