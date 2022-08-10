@@ -800,28 +800,19 @@ func (c ProofChain) ToMerkles() (*common.MerkleProofs, error) {
 	return mp, nil
 }
 
-func (c ProofChain) Key() (uint64, bool) {
-	h := uint64(0)
-	shiftThreshold := uint64(1) << 60
-	for i := len(c) - 1; i >= 0; i-- {
-		if h >= shiftThreshold {
-			return 0, false
-		}
-		h <<= 4
-		if c[i] == nil {
-			continue
-		}
-		nibble, ok := c[i].ChildProofs.Key() // 4 levels only, means 4 bits only, will not overflow
-		if !ok {
-			return 0, false
-		}
-		o := h + nibble&0xf
-		if o < h {
-			return 0, false
-		}
-		h = o
+func (c ProofChain) ToItems() ([]common.HashItem, error) {
+	if len(c) == 0 {
+		return nil, nil
 	}
-	return h, true
+	var items []common.HashItem
+	err := c.Iterate(func(val []byte, order bool) error {
+		items = append(items, common.HashItem{Val: common.BytesToHash(val), Order: order})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 func (c ProofChain) BigKey() *big.Int {

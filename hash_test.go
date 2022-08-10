@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math/big"
 	mrand "math/rand"
 	"testing"
 
@@ -66,8 +67,8 @@ func TestMerkleHash(t *testing.T) {
 	if err := rtl.Encode(p2, buf); err != nil {
 		t.Errorf("marshal error: %v", err)
 	} else {
-		bytes := buf.Bytes()
-		t.Logf("stream: %x", bytes)
+		bs := buf.Bytes()
+		t.Logf("stream: %x", bs)
 		p3 := new(MerkleProofs)
 		if err := rtl.Decode(buf, p3); err != nil {
 			t.Errorf("unmarshal error: %v", err)
@@ -308,5 +309,134 @@ func TestMerkleHash_Half(t *testing.T) {
 	if err := totestMerkleHash(t, 257, MerkleHash); err != nil {
 		t.Errorf("merkle(257)%v", err)
 		return
+	}
+}
+
+func TestMoreTime_Equal(t *testing.T) {
+	m := &MoreTime{
+		Index: 1,
+		Times: 1,
+	}
+	o := &MoreTime{
+		Index: 1,
+		Times: 1,
+	}
+	if (*m).Equal(*o) {
+		t.Log(m, "==", o)
+	} else {
+		t.Fatal(m, "!=", o)
+	}
+}
+
+func TestMoreTimes(t *testing.T) {
+	mts0 := MoreTimes{{1, 1}, {2, 2}, {3, 3}}
+	bs, err := rtl.Marshal(mts0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mts1 := make(MoreTimes, 0)
+	if err := rtl.Unmarshal(bs, &mts1); err != nil {
+		t.Fatal(err)
+	}
+
+	mts2 := mts1.Clone()
+	mts1[2].Times++
+	if mts1[2].Times == 4 {
+		t.Logf("%v", mts1)
+	} else {
+		t.Fatalf("%v", mts1)
+	}
+	if mts2[2].Times == 3 {
+		t.Logf("cloned: %v", mts2)
+	} else {
+		t.Fatalf("cloned: %v", mts2)
+	}
+}
+
+func _codecMerkleProofs(mp *MerkleProofs) (int, error) {
+	// encode
+	bs, err := rtl.Marshal(mp)
+	if err != nil {
+		return 0, fmt.Errorf("encode failed: %v", err)
+	}
+	nmp := new(MerkleProofs)
+	if err = rtl.Unmarshal(bs, nmp); err != nil {
+		return 0, fmt.Errorf("decode failed: %v", err)
+	}
+	if !nmp.Equal(mp) {
+		return 0, fmt.Errorf("not match, expecting:%s but:%s", mp, nmp)
+	}
+	return len(bs), nil
+}
+
+func TestRepeatedMerkleProofs(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		mptimes := NewMerkleProofs()
+		var hashs []Hash
+		orders := big.NewInt(0)
+		for j := 0; j < 50; j++ {
+			h := BytesToHash(RandomBytes(HashLength))
+
+			order := mrand.Int()%2 == 0
+			mptimes.Append(h, order)
+			hashs = append(hashs, h)
+			if order {
+				orders.SetBit(orders, len(hashs)-1, 1)
+			}
+
+			single := mrand.Int()
+			times := 0
+			if single%2 == 0 {
+				times = mrand.Intn(10)
+				for k := 0; k < times; k++ {
+					order := mrand.Int()%2 == 0
+					mptimes.Append(h, order)
+					hashs = append(hashs, h)
+					if order {
+						orders.SetBit(orders, len(hashs)-1, 1)
+					}
+				}
+			}
+		}
+		mpnotimes := &MerkleProofs{
+			Hashs:   hashs,
+			Paths:   orders,
+			Repeats: nil,
+		}
+
+		if mptimes.Len() != mpnotimes.Len() {
+			t.Fatalf("(%d) notimes len:%d times len:%d", i, mpnotimes.Len(), mptimes.Len())
+		}
+		if mptimes.Paths.Cmp(mpnotimes.Paths) != 0 {
+			t.Fatalf("(%d) notimes path:%s times path:%s", i, mpnotimes.Paths, mptimes.Paths)
+		}
+		val := BytesToHash(RandomBytes(HashLength))
+		mproot, err := mpnotimes.Proof(val)
+		if err != nil {
+			t.Fatalf("(%d) notimes.proof(%x) failed: %v", i, val[:], err)
+		}
+		timesroot, err := mptimes.Proof(val)
+		if err != nil {
+			t.Fatalf("(%d) times.proof(%x) failed: %v", i, val[:], err)
+		}
+		if bytes.Equal(mproot, timesroot) == false {
+			t.Fatalf("(%d) notimes.root:%x times.root:%x", i, mproot, timesroot)
+		}
+		t.Logf("(%d) mp:%s\ntimes:%s check\n", i, mpnotimes.InfoString(0), mptimes.InfoString(0))
+
+		// codec
+		length, err := _codecMerkleProofs(mpnotimes)
+		if err != nil {
+			t.Fatalf("(%d) mp codec failed: %v", i, err)
+		}
+		timeLength, err := _codecMerkleProofs(mptimes)
+		if err != nil {
+			t.Fatalf("(%d) moretimes mp codec failed: %v", i, err)
+		}
+		if length < timeLength {
+			t.Fatalf("(%d) mp:%d mptimes:%d", i, length, timeLength)
+		} else {
+			t.Logf("(%d) mp:%d mptimes:%d", i, length, timeLength)
+		}
 	}
 }

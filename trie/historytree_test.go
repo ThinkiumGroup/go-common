@@ -182,7 +182,7 @@ func TestHistoryTree(t *testing.T) {
 	}
 
 	value, proofs, ok := htree.GetProof(10)
-	if !ok || len(proofs) != HistoryTreeDepth {
+	if !ok {
 		t.Errorf("GetProof(10) failed: %v, %v, %t", value, proofs, ok)
 		return
 	} else {
@@ -354,7 +354,7 @@ func TestHistoryTree_Append(t *testing.T) {
 	}
 
 	value, proofs, ok := htree.GetProof(p1)
-	if !ok || len(proofs) != HistoryTreeDepth {
+	if !ok {
 		t.Errorf("GetProof(%d) failed: %v, %v, %t", p1, value, proofs, ok)
 		return
 	} else {
@@ -459,7 +459,7 @@ func TestHistoryRestore(t *testing.T) {
 	hash0x0f, _ := htree.HashValue()
 	p := end - 1
 	value, proofs, ok := htree.GetProof(p)
-	if !ok || len(proofs) != HistoryTreeDepth {
+	if !ok {
 		t.Errorf("GetProof(%d) failed: %x, %v, %t", p, value, proofs, ok)
 		return
 	} else {
@@ -475,7 +475,7 @@ func TestHistoryRestore(t *testing.T) {
 
 	hash0x0f1, _ := htree.HashValue()
 	value, proofs, ok = htree.GetProof(p)
-	if !ok || len(proofs) != HistoryTreeDepth {
+	if !ok {
 		t.Errorf("GetProof(%d) failed: %x, %v, %t", p, value, proofs, ok)
 		return
 	} else {
@@ -484,7 +484,7 @@ func TestHistoryRestore(t *testing.T) {
 
 	htree2, _ := NewHistoryTree(dbase, hash0x0f, true)
 	value, proofs, ok = htree2.GetProof(p)
-	if !ok || len(proofs) != HistoryTreeDepth {
+	if !ok {
 		t.Errorf("GetProof(%d) failed: %x, %v, %t", p, value, proofs, ok)
 		return
 	} else {

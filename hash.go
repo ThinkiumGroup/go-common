@@ -21,6 +21,7 @@ import (
 	"io"
 	"math/big"
 	"reflect"
+	"sort"
 
 	"github.com/ThinkiumGroup/go-cipher"
 	"github.com/ThinkiumGroup/go-common/math"
@@ -33,13 +34,232 @@ type Hasher interface {
 	HashValue() ([]byte, error)
 }
 
+type (
+	MoreTime struct {
+		Index int `json:"i"`     // the index of MerkleProofs.Hashs
+		Times int `json:"times"` // how many more times the Hash repeats (one time in Hashs not included)
+	}
+
+	MoreTimes []MoreTime
+
+	// an index range described by two values, containing both sides
+	// a = fullBorder[0], b = fullBorder[1]
+	// indexes: [a, b]
+	fullBorder [2]int
+
+	HashItem struct {
+		Val   Hash
+		Order bool // true for Item.Val on the left side, false for right side
+	}
+)
+
+func (f fullBorder) isValid() bool {
+	return f[0] >= 0 && f[1] >= f[0]
+}
+
+func (f fullBorder) a() int {
+	return f[0]
+}
+
+func (f fullBorder) b() int {
+	return f[1]
+}
+
+// f = [a,b]
+// -1: fullIndex < a
+// 0: a <= fullIndex <= b
+// 1: a > b
+func (f fullBorder) compared(fullIndex int) int {
+	if fullIndex < f[0] {
+		return -1
+	}
+	if fullIndex >= f[0] && fullIndex <= f[1] {
+		return 0
+	}
+	return 1
+}
+
+func (f fullBorder) String() string {
+	return fmt.Sprintf("[%d, %d]", f[0], f[1])
+}
+
+func (m MoreTime) IsValid() bool {
+	return m.Index >= 0 && m.Times > 0
+}
+
+func (m MoreTime) Equal(o MoreTime) bool {
+	return m == o
+}
+
+func (m MoreTime) _border(prev MoreTime, prevBorder fullBorder) fullBorder {
+	if !prev.IsValid() {
+		// prev is invalid means current MoreTime is the first
+		return fullBorder{m.Index, m.Index + m.Times}
+	} else {
+		// m.Index-prev.Index is the number of hashes with no duplicates between m and prev
+		s := prevBorder.b() + m.Index - prev.Index
+		return fullBorder{s, s + m.Times}
+	}
+}
+
+func (m MoreTime) String() string {
+	return fmt.Sprintf("{Idx:%d Times:%d}", m.Index, m.Times)
+}
+
+func (ms MoreTimes) Clone() MoreTimes {
+	if ms == nil {
+		return nil
+	}
+	rs := make(MoreTimes, len(ms), len(ms))
+	copy(rs, ms)
+	return rs
+}
+
+func (ms MoreTimes) IsValid() bool {
+	if ms == nil {
+		return true
+	}
+	if len(ms) == 0 {
+		return false
+	}
+	lastIndex := 0
+	for _, m := range ms {
+		if !m.IsValid() {
+			return false
+		}
+		if lastIndex >= m.Index {
+			return false
+		}
+		lastIndex = m.Index
+	}
+	return true
+}
+
+func (ms MoreTimes) Equal(os MoreTimes) bool {
+	if len(ms) != len(os) {
+		return false
+	}
+	if ms == nil && os == nil {
+		return true
+	}
+	if ms == nil || os == nil {
+		return false
+	}
+	for i, m := range ms {
+		if m != os[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func (ms MoreTimes) Find(index int) (times int, exist bool) {
+	i := sort.Search(len(ms), func(j int) bool {
+		return ms[j].Index >= index
+	})
+	if i >= len(ms) {
+		return 0, false
+	}
+	if ms[i].Index == index {
+		return ms[i].Times, true
+	}
+	return 0, false
+}
+
+func (ms MoreTimes) Append(index int) MoreTimes {
+	if index < 0 {
+		return ms
+	}
+	if len(ms) == 0 {
+		return append(ms, MoreTime{
+			Index: index,
+			Times: 1,
+		})
+	}
+	last := len(ms) - 1
+	if ms[last].Index == index {
+		ms[last].Times++
+		return ms
+	} else if ms[last].Index < index {
+		return append(ms, MoreTime{
+			Index: index,
+			Times: 1,
+		})
+	} else {
+		return ms
+	}
+}
+
+func (ms MoreTimes) Count() int {
+	if len(ms) == 0 {
+		return 0
+	}
+	count := 0
+	for _, m := range ms {
+		if m.Times > 0 {
+			count += m.Times
+		}
+	}
+	return count
+}
+
+// get index of MerkleProofs.Hashs by the index of the expanded full hash list
+func (ms MoreTimes) GetHashsIndex(fullIndex int) int {
+	if len(ms) == 0 || fullIndex <= 0 {
+		return fullIndex
+	}
+	lastMt := MoreTime{Index: 0, Times: 0}
+	lastBorder := fullBorder{0, 0}
+	for _, m := range ms {
+		border := m._border(lastMt, lastBorder)
+		compared := border.compared(fullIndex)
+		if compared < 0 {
+			return fullIndex - lastBorder.b() + lastMt.Index
+		} else if compared == 0 {
+			return m.Index
+		}
+		// compared>0
+		lastMt = m
+		lastBorder = border
+	}
+	return fullIndex - lastBorder.b() + lastMt.Index
+}
+
+type moreTimesIterator struct {
+	i  int
+	ms MoreTimes
+}
+
+func newMoreTimesIterator(ms MoreTimes) *moreTimesIterator {
+	return &moreTimesIterator{
+		i:  -1,
+		ms: ms,
+	}
+}
+
+func (it *moreTimesIterator) hasMore() bool {
+	return it.i < (len(it.ms) - 1)
+}
+
+func (it *moreTimesIterator) next() (MoreTime, bool) {
+	if it.hasMore() {
+		it.i++
+		return it.ms[it.i], true
+	}
+	return MoreTime{}, false
+}
+
 // Since 16 bit counting is used in serialization, the maximum supported proof height cannot exceed 65535
 type MerkleProofs struct {
-	Hashs []Hash   `json:"hashs"` // Use ToBeProof to alculate the Hash list of Hash with index starting from 0 in order
-	Paths *big.Int `json:"paths"` // Bit operands. The bit corresponding to the index of hashs
-	//                            // indicates that the corresponding hash value is placed left (1)
-	//                            // or right (0) during hash operation, and the order is exactly
-	//                            // the binary value of the proved object
+	// Use ToBeProof to alculate the Hash list of Hash with index starting from 0 in order
+	Hashs []Hash `json:"hashs"`
+	// Bit operands. The bit corresponding to the index of hashs indicates that the corresponding
+	// hash value is placed left (1) or right (0) during hash operation, and the order is exactly
+	// the binary value of the proved object
+	Paths *big.Int `json:"paths"`
+	// To save storage it is used to shrink consecutive identical hash values. Each MoreTime means
+	// MerkleProofs.Hashs[MoreTime.Index] repeats MoreTime.Times times more than itself
+	Repeats MoreTimes `json:"repeats"`
 }
 
 func NewMerkleProofs() *MerkleProofs {
@@ -63,39 +283,33 @@ func (p *MerkleProofs) Equal(o *MerkleProofs) bool {
 			return false
 		}
 	}
-	return math.CompareBigInt(p.Paths, o.Paths) == 0
+	if math.CompareBigInt(p.Paths, o.Paths) != 0 {
+		return false
+	}
+	return p.Repeats.Equal(o.Repeats)
 }
 
 func (p *MerkleProofs) Clone() *MerkleProofs {
 	if p == nil {
 		return nil
 	}
-	ret := new(MerkleProofs)
+	var hs []Hash
 	if p.Hashs != nil {
-		ret.Hashs = make([]Hash, len(p.Hashs))
-		for i := 0; i < len(p.Hashs); i++ {
-			ret.Hashs[i] = p.Hashs[i]
-		}
+		hs = make([]Hash, len(p.Hashs), len(p.Hashs))
+		copy(hs, p.Hashs)
 	}
-	if p.Paths != nil {
-		ret.Paths = new(big.Int).Set(p.Paths)
+	return &MerkleProofs{
+		Hashs:   hs,
+		Paths:   math.CopyBigInt(p.Paths),
+		Repeats: p.Repeats.Clone(),
 	}
-	return ret
 }
 
 func (p *MerkleProofs) Len() int {
 	if p == nil {
 		return 0
 	}
-	return len(p.Hashs)
-}
-
-// The key of the current proof value, OK is false when overflowing
-func (p *MerkleProofs) Key() (key uint64, ok bool) {
-	if p.Paths == nil || !p.Paths.IsUint64() {
-		return 0, false
-	}
-	return p.Paths.Uint64(), true
+	return len(p.Hashs) + p.Repeats.Count()
 }
 
 func (p *MerkleProofs) BigKey(bigKey *big.Int, startAt int) int {
@@ -105,23 +319,29 @@ func (p *MerkleProofs) BigKey(bigKey *big.Int, startAt int) int {
 	if p == nil || len(p.Hashs) == 0 {
 		return startAt
 	}
-	i := 0
-	for ; i < len(p.Hashs); i++ {
-		pos := startAt + i
-		bigKey.SetBit(bigKey, pos, p.Paths.Bit(i))
+
+	l := p.Len()
+	for i := 0; i < l; i++ {
+		bigKey.SetBit(bigKey, i+startAt, p.Paths.Bit(i))
 	}
-	return i + startAt
+	return l + startAt
 }
 
 // h: a point on the proofing path
 // order: Is this point on the left side (true) or the right side (false) of the proof path
 func (p *MerkleProofs) Append(h Hash, order bool) {
-	p.Hashs = append(p.Hashs, h)
+	if len(p.Hashs) > 0 && p.Hashs[len(p.Hashs)-1] == h {
+		p.Repeats = p.Repeats.Append(len(p.Hashs) - 1)
+	} else {
+		p.Hashs = append(p.Hashs, h)
+	}
 	b := uint(1)
 	if !order {
 		b = 0
 	}
-	p.Paths.SetBit(p.Paths, len(p.Hashs)-1, b)
+	if b == 1 {
+		p.Paths.SetBit(p.Paths, len(p.Hashs)+p.Repeats.Count()-1, b)
+	}
 	// fmt.Printf("merkle proof append: %x, left:%t\n", h[:5], order)
 }
 
@@ -138,16 +358,67 @@ func (p *MerkleProofs) Order(i int) bool {
 	}
 }
 
-func (p *MerkleProofs) Iterate(hashCallback func(val []byte, order bool) error) error {
-	if p == nil {
+func (p *MerkleProofs) _hashsIterate(callback func(h Hash, index, startFullIndex int, times int) error) error {
+	if p == nil || len(p.Hashs) == 0 {
 		return nil
 	}
-	for i := 0; i < len(p.Hashs); i++ {
-		if err := hashCallback(p.Hashs[i][:], p.Order(i)); err != nil {
-			return err
+	cursor := MoreTime{Index: -1, Times: 0}
+	it := newMoreTimesIterator(p.Repeats)
+	fullIndex := 0
+	for i, val := range p.Hashs {
+		for it.hasMore() && i > cursor.Index {
+			n, exist := it.next()
+			if !exist || !n.IsValid() {
+				return fmt.Errorf("%s at %d invalid or exist=%t", n, i, exist)
+			}
+			cursor = n
+		}
+		if cursor.Index == i {
+			if err := callback(val, i, fullIndex, cursor.Times+1); err != nil {
+				return fmt.Errorf("callback failed at fullIdx:%d i:%d==%s: %v", fullIndex, i, cursor, err)
+			}
+			fullIndex += cursor.Times + 1
+		} else {
+			// 1. it.hasMore()==false && i>cursor.Index
+			// 2. i<cursor.Index and i>lastCursor.Index
+			if err := callback(val, i, fullIndex, 1); err != nil {
+				return fmt.Errorf("callback failed at fullIdx:%d i:%d<>%s: %v", fullIndex, i, cursor, err)
+			}
+			fullIndex++
 		}
 	}
 	return nil
+}
+
+func (p *MerkleProofs) Iterate(hashCallback func(val []byte, order bool) error) error {
+	if p == nil || len(p.Hashs) == 0 {
+		return nil
+	}
+	return p._hashsIterate(func(h Hash, index, startFullIndex int, times int) error {
+		for i := 0; i < times; i++ {
+			fullIndex := startFullIndex + i
+			order := p.Order(fullIndex)
+			if err := hashCallback(h[:], order); err != nil {
+				return fmt.Errorf("hashCallback(Idx:%d FullIdx:%d Order:%t) failed: %v", index, fullIndex, order, err)
+			}
+		}
+		return nil
+	})
+}
+
+func (p *MerkleProofs) ToItems() ([]HashItem, error) {
+	if p == nil || len(p.Hashs) == 0 {
+		return nil, nil
+	}
+	ret := make([]HashItem, 0, p.Len())
+	err := p.Iterate(func(val []byte, order bool) error {
+		ret = append(ret, HashItem{Val: BytesToHash(val), Order: order})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return ret, nil
 }
 
 // According to the input, calculate the hash according to the proof, and return the result.
@@ -162,26 +433,21 @@ func (p *MerkleProofs) Proof(toBeProof Hash) ([]byte, error) {
 	if errr := p.Iterate(callback); errr != nil {
 		return nil, errr
 	}
-	// if p != nil {
-	// 	for i := 0; i < len(p.Hashs); i++ {
-	// 		if p.Order(i) {
-	// 			h = HashPair(p.Hashs[i][:], h)
-	// 		} else {
-	// 			h = HashPair(h, p.Hashs[i][:])
-	// 		}
-	// 	}
-	// }
 	return h, nil
 }
 
 // Gets the hash value corresponding with index (starting from 0) on the proof path and its order.
 // If order is true, the hash value returned should be placed in the left, otherwise, right
-func (p *MerkleProofs) Get(index int) (h Hash, order bool, err error) {
+func (p *MerkleProofs) Get(fullIndex int) (h Hash, order bool, err error) {
+	if fullIndex < 0 {
+		return Hash{}, false, ErrIllegalParams
+	}
+	index := p.Repeats.GetHashsIndex(fullIndex)
 	if index < 0 || index >= len(p.Hashs) {
 		return Hash{}, false, ErrIllegalParams
 	}
 	h = p.Hashs[index]
-	if p.Paths.Bit(index) == 1 {
+	if p.Paths.Bit(fullIndex) == 1 {
 		order = true
 	} else {
 		order = false
@@ -224,18 +490,42 @@ func readArray(sizeBuf []byte, r io.Reader) ([]byte, error) {
 	return array, nil
 }
 
-// 1 byte flag of whether it's nil (common.NilOrFalse/common.NotNilOrTrue)
+// p==nil:
+// 1 byte (common.NilOrFalse)
+//
+// p!=nil && len(p.Repeats)==0
+// 1 byte (common.NotNilOrTrue)
 // + binary.BigEndian.PutUint16(len(Hashs))
-// + binary.BigEndian.PutUint16(len(Hashs[0])) + Hashs[0]
+// + Hashs[0]
 // + ...
-// + binary.BigEndian.PutUint16(len(Hashs[len(Hashs)-1])) + Hashs[len(Hashs)-1]
+// + Hashs[len(Hashs)-1]
 // + binary.BigEndian.PutUint16(len(Paths.Bytes())) + Paths.Bytes()
+//
+// p!=nil && len(p.Repeats)>0
+// 1 byte (common.Version0)
+// + binary.BigEndian.PutUint16(len(Hashs))
+// + Hashs[0]
+// + ...
+// + Hashs[len(Hashs)-1]
+// + binary.BigEndian.PutUint16(len(Paths.Bytes())) + Paths.Bytes()
+// + binary.BigEndian.PutUint16(len(Repeats))
+// + binary.BigEndian.PutUint16(Repeats[0].Index) + binary.BigEndian.PutUint16(Repeats[0].Times)
+// + ...
+// + binary.BigEndian.PutUint16(Repeats[len(Repeats)-1].Index) + binary.BigEndian.PutUint16(Repeats[len(Repeats)-1].Times)
 func (p *MerkleProofs) Serialization(w io.Writer) error {
 	if p == nil {
-		w.Write([]byte{rtl.NilOrFalse})
+		if _, err := w.Write([]byte{rtl.NilOrFalse}); err != nil {
+			return err
+		}
 		return nil
+	} else if len(p.Repeats) == 0 {
+		if _, err := w.Write([]byte{rtl.NotNilOrTrue}); err != nil {
+			return err
+		}
 	} else {
-		w.Write([]byte{rtl.NotNilOrTrue})
+		if _, err := w.Write([]byte{rtl.Version0}); err != nil {
+			return err
+		}
 	}
 	l := make([]byte, 2)
 	size := len(p.Hashs)
@@ -260,6 +550,23 @@ func (p *MerkleProofs) Serialization(w io.Writer) error {
 		return err
 	}
 
+	if len(p.Repeats) > 0 {
+		binary.BigEndian.PutUint16(l, uint16(len(p.Repeats)))
+		if _, err = w.Write(l); err != nil {
+			return err
+		}
+		for i := 0; i < len(p.Repeats); i++ {
+			binary.BigEndian.PutUint16(l, uint16(p.Repeats[i].Index))
+			if _, err = w.Write(l); err != nil {
+				return err
+			}
+			binary.BigEndian.PutUint16(l, uint16(p.Repeats[i].Times))
+			if _, err = w.Write(l); err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -274,27 +581,45 @@ func (p *MerkleProofs) Deserialization(r io.Reader) (shouldBeNil bool, err error
 	}
 
 	sizebuf := make([]byte, 2)
-
-	var array []byte
-	_, err = r.Read(sizebuf)
+	_, err = io.ReadFull(r, sizebuf)
 	if err != nil {
 		return
 	}
 	hashSize := int(binary.BigEndian.Uint16(sizebuf))
 	p.Hashs = make([]Hash, hashSize)
 	for i := 0; i < hashSize; i++ {
-		_, err = r.Read(p.Hashs[i][:])
+		_, err = io.ReadFull(r, p.Hashs[i][:])
 		if err != nil {
 			return
 		}
 	}
 
+	var array []byte
 	array, err = readArray(sizebuf, r)
 	if err != nil {
 		return
 	}
 	p.Paths = new(big.Int)
 	p.Paths.SetBytes(array)
+
+	p.Repeats = nil
+	if flag[0] == rtl.Version0 {
+		if _, err = io.ReadFull(r, sizebuf); err != nil {
+			return false, err
+		}
+		repeatsSize := int(binary.BigEndian.Uint16(sizebuf))
+		p.Repeats = make(MoreTimes, repeatsSize)
+		buf := make([]byte, 4)
+		for i := 0; i < repeatsSize; i++ {
+			if _, err = io.ReadFull(r, buf); err != nil {
+				return false, err
+			}
+			p.Repeats[i] = MoreTime{
+				Index: int(binary.BigEndian.Uint16(buf[:2])),
+				Times: int(binary.BigEndian.Uint16(buf[2:])),
+			}
+		}
+	}
 
 	return
 }
@@ -312,7 +637,7 @@ func (p MerkleProofs) String() string {
 	buf.Reset()
 
 	buf.WriteString("MProof{")
-	buf.WriteString(fmt.Sprintf("(%x),", p.Paths.Uint64()))
+	buf.WriteString(fmt.Sprintf("(0x%s,%s),", (*math.BigInt)(p.Paths).HexString(), p.Paths))
 	if len(p.Hashs) > 0 {
 		for i := 0; i < len(p.Hashs); i++ {
 			if i > 0 {
@@ -342,10 +667,32 @@ func (p *MerkleProofs) InfoString(level IndentLevel) string {
 
 	base := level.IndentString()
 	buf.WriteString("MerkleProofs{")
-	buf.WriteString(fmt.Sprintf("\n%s\tPath: %x", base, p.Paths.Uint64()))
-	for i, h := range p.Hashs {
-		buf.WriteString(fmt.Sprintf("\n%s\t%d: (%d)%x", base, i, p.Paths.Bit(i), h[:]))
-	}
+
+	buf.WriteString(fmt.Sprintf("\n%s\tPath: %x", base, p.Paths.Bytes()))
+	_ = p._hashsIterate(func(h Hash, index, startFullIndex int, times int) error {
+		if times > 1 {
+			orders := big.NewInt(0)
+			pathBytes := p.Paths.Bytes()
+			sub, err := SubBytes(pathBytes, startFullIndex, times)
+			if err != nil {
+				return err
+			}
+			if len(sub) > 0 {
+				orders.SetBytes(sub)
+			}
+			// for i := 0; i < times; i++ {
+			// 	if p.Paths.Bit(i+startFullIndex) == 1 {
+			// 		orders.SetBit(orders, i, 1)
+			// 	}
+			// }
+			buf.WriteString(fmt.Sprintf("\n%s\t%d-(F:%d-%d): (0x%s)%x +%d",
+				base, index, startFullIndex, startFullIndex+times-1, (*math.BigInt)(orders).HexString(), h[:], times))
+		} else {
+			buf.WriteString(fmt.Sprintf("\n%s\t%d-(F:%d): (%d)%x",
+				base, index, startFullIndex, p.Paths.Bit(startFullIndex), h[:]))
+		}
+		return nil
+	})
 	buf.WriteString("\n")
 	buf.WriteString(base)
 	buf.WriteByte('}')

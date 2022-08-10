@@ -306,3 +306,65 @@ func CopyBytesSlice(in [][]byte) [][]byte {
 	}
 	return out
 }
+
+// let b0.bit(0~7) and b1.bit(0~7) be bit(0~15), and returns bit(shifts, shifts+length)
+// 0 <= shifts <= 7; 1<= length <= 8 default:8
+// ShiftBytes(0xf0, 0xf, 3, 7) would be 0x7e
+// ShiftBytes(0xf0, 0xf, 3) would be 0xfe
+func ShiftBits(b0, b1 byte, shifts uint8, length ...uint8) byte {
+	shifts = shifts & 0x7
+	bitLength := uint8(8)
+	if len(length) > 0 {
+		if length[0] > 0 && length[0] < 8 {
+			bitLength = length[0]
+		}
+	}
+	r := b0
+	if shifts == 0 {
+		// r = b0
+	} else {
+		r = b0 >> shifts
+		if bitLength+shifts > 8 {
+			r |= b1 << (8 - shifts)
+		}
+	}
+	if offset := 8 - bitLength; offset > 0 {
+		rr := r << offset // clear top bits
+		r = rr >> offset
+	}
+	return r
+}
+
+// cut bytes from bs, bits [from, to)
+func SubBytes(bs []byte, from, size int) ([]byte, error) {
+	if from < 0 || size <= 0 {
+		return nil, errors.New("invalid bit parameters")
+	}
+	bsBitSize := len(bs) << 3
+	if from >= bsBitSize {
+		return nil, nil
+	}
+	if size+from > bsBitSize {
+		size = bsBitSize - from
+	}
+
+	last := len(bs) - 1
+	rssize := (size + 7) / 8
+
+	rs := make([]byte, rssize)
+	shiftBits := uint8(from % 8)
+	for i := 0; i < size; i = i + 8 {
+		p := last - (i+from)>>3
+		pr := rssize - 1 - i>>3
+		b1 := byte(0)
+		if p > 0 {
+			b1 = bs[p-1]
+		}
+		if size-i >= 8 {
+			rs[pr] = ShiftBits(bs[p], b1, shiftBits)
+		} else {
+			rs[pr] = ShiftBits(bs[p], b1, shiftBits, uint8(size-i))
+		}
+	}
+	return rs, nil
+}

@@ -553,3 +553,14 @@ func (b *BigInt) MustPositive() *big.Int {
 func (b *BigInt) String() string {
 	return BigIntForPrint((*big.Int)(b))
 }
+
+func (b *BigInt) HexString() string {
+	bs := (*big.Int)(b).Bytes()
+	if len(bs) == 0 {
+		return "0"
+	}
+	if b.Sign() < 0 {
+		return fmt.Sprintf("-%x", bs)
+	}
+	return fmt.Sprintf("%x", bs)
+}
