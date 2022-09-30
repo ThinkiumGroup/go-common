@@ -159,6 +159,7 @@ func ByteSlicesToNodeIDs(bss [][]byte) (NodeIDs, error) {
 		return nil, nil
 	}
 	dedup := make(map[NodeID]struct{})
+	nids := make(NodeIDs, 0, len(bss))
 	for _, nodeid := range bss {
 		if len(nodeid) != NodeIDBytes {
 			return nil, fmt.Errorf("illegal nodeid: %x", nodeid)
@@ -168,9 +169,6 @@ func ByteSlicesToNodeIDs(bss [][]byte) (NodeIDs, error) {
 			return nil, errors.New("duplicated node found")
 		}
 		dedup[nid] = struct{}{}
-	}
-	nids := make(NodeIDs, 0, len(dedup))
-	for nid, _ := range dedup {
 		nids = append(nids, nid)
 	}
 	return nids, nil
