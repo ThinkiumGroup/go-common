@@ -102,7 +102,7 @@ func VerifyHashWithPub(hash, pub, sig []byte) (bool, []byte) {
 	if sig == nil || hash == nil {
 		return false, nil
 	}
-	if pub == nil {
+	if len(pub) == 0 {
 		if PubKeyCanRecover() {
 			p, err := RealCipher.RecoverPub(hash[:], sig)
 			if err != nil || p == nil {
