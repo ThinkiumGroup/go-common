@@ -33,7 +33,6 @@ type (
 		stack   []*tracenode // stack of traversing
 		current *node        // current node
 		ended   bool         // is the traversal complete
-		// lock    sync.Mutex
 	}
 
 	// The selector of the current node, when it returns true, will cause the depth traversal
@@ -74,7 +73,7 @@ func (t tracenode) current(trie *Trie) *node {
 		return nil
 	}
 	if t.node.isCollapsed() {
-		trie.expandNode(t.node)
+		_ = trie.expandNode(t.node)
 	}
 	return t.node.children[int(t.index)]
 }
@@ -87,7 +86,7 @@ func (t tracenode) currentPrefix(trie *Trie) []byte {
 		return nil
 	}
 	if t.node.isCollapsed() {
-		trie.expandNode(t.node)
+		_ = trie.expandNode(t.node)
 	}
 	prefix := make([]byte, len(t.node.prefix)+1)
 	copy(prefix, t.node.prefix)
@@ -99,7 +98,7 @@ func (t tracenode) currentPrefix(trie *Trie) []byte {
 // nodes, return nil
 func (t *tracenode) moveToNext(trie *Trie) *node {
 	if t.node != nil && t.node.isCollapsed() {
-		trie.expandNode(t.node)
+		_ = trie.expandNode(t.node)
 	}
 	var i byte = 0
 	if t.index > childrenLength {
@@ -110,15 +109,13 @@ func (t *tracenode) moveToNext(trie *Trie) *node {
 		// twice, it will be traversed again from the beginning
 	} else {
 		i = t.index + 1
+		// collapse last index
+		if t.node.children[t.index] != nil && t.node.children[t.index].canCollapse() {
+			_ = t.node.children[t.index].collapse()
+		}
 	}
 	for ; i < childrenLength; i++ {
 		if t.node.children[i] != nil {
-			if t.index < childrenLength {
-				// node before current node
-				if t.node.children[t.index] != nil && t.node.children[t.index].canCollapse() {
-					t.node.children[t.index].collapse()
-				}
-			}
 			t.index = i
 			return t.node.children[i]
 		}
@@ -126,23 +123,14 @@ func (t *tracenode) moveToNext(trie *Trie) *node {
 	return nil
 }
 
-func (s *traceStack) currentNode(trie *Trie) *node {
-	// s.lock.Lock()
-	// defer s.lock.Unlock()
+func (s *traceStack) currentNode() *node {
 	if s.ended {
 		return nil
 	}
-	// if len(s.stack) == 0 {
-	// 	return trie.root
-	// }
-	// return s.stack[len(s.stack)-1].current(trie)
 	return s.current
 }
 
 func (s *traceStack) currentNodePrefix(trie *Trie) []byte {
-	// s.lock.Lock()
-	// defer s.lock.Unlock()
-
 	if s.ended {
 		return nil
 	}
@@ -157,9 +145,6 @@ func (s *traceStack) currentNodePrefix(trie *Trie) []byte {
 }
 
 func (s *traceStack) depthFirstNextStep(trie *Trie, selector NodeSelector) *node {
-	// s.lock.Lock()
-	// defer s.lock.Unlock()
-
 	var tn *tracenode
 	var n *node
 outer:
@@ -215,9 +200,6 @@ outer:
 			tn = s.stack[len(s.stack)-1]
 		}
 	}
-	// s.ended = true
-	// s.current = nil
-	// return nil
 }
 
 func newNodeIterator(trie *Trie) *nodeIterator {
@@ -240,7 +222,6 @@ func (it *nodeIterator) Next(selector NodeSelector) *node {
 		return nil
 	}
 	return it.stack.depthFirstNextStep(it.trie, selector)
-	// return it.stack.depthFirstNextStep(nil)
 }
 
 func (it *nodeIterator) Current() *node {
@@ -250,7 +231,7 @@ func (it *nodeIterator) Current() *node {
 	if it.stack.ended {
 		return nil
 	}
-	return it.stack.currentNode(it.trie)
+	return it.stack.currentNode()
 }
 
 func (it *nodeIterator) CurrentPrefix() []byte {
@@ -386,20 +367,20 @@ func (rt *reversedValueIterator) Next() bool {
 				if last.node.children[last.index] == nil {
 					// nil child, ignore
 					last.index--
+					if last.index < 0 {
+						// check value when the reversedTrace just before poping out
+						if last.node.hasValue() {
+							return true
+						} else {
+							// shortcut, pop node if there's no value
+							_ = last.node.collapse()
+							rt.stack = rt.stack[:len(rt.stack)-1]
+						}
+					}
 				} else {
 					// push child node to stack
 					rt.stack = append(rt.stack, &reversedTrace{node: last.node.children[last.index], index: childrenLength})
 					break
-				}
-			}
-			if last.index < 0 {
-				// check value when the reversedTrace just before poping out
-				if last.node.hasValue() {
-					return true
-				} else {
-					// shortcut, pop node if there's no value
-					_ = last.node.collapse()
-					rt.stack = rt.stack[:len(rt.stack)-1]
 				}
 			}
 		}
