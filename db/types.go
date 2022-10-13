@@ -132,6 +132,13 @@ var (
 	// prefix + ChainID + Height -> [{BlockHash, AuditPass}]
 	KPAuditorMsgs = []byte("aq")
 
+	KPBridgeReqTrieNode  = []byte("ba") // sub-chain: bridge request trie node
+	KPBridgeReqTrieValue = []byte("bd") // sub-chain: bridge request trie value
+	KPBridgeReqNode      = []byte("bf") // sub-chain: bridge request node
+	KPBridgeReqValue     = []byte("bg") // sub-chain: bridge request value
+	KPBridgeInfoNode     = []byte("bi") // main-chain: bridge info node
+	KPBridgeInfoValue    = []byte("bj") // main-chain: bridge info value
+
 	ErrNotFound = errors.New("data not found")
 	ErrReadOnly = errors.New("read only database")
 )
