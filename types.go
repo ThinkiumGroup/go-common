@@ -397,3 +397,17 @@ func (l IndentLevel) InfoString(o interface{}) string {
 		return InfoStringer(v, l)
 	}
 }
+
+func (l IndentLevel) DoubleByteSlice(slices [][]byte) string {
+	if slices == nil {
+		return "<nil>"
+	}
+	indent := l.IndentString()
+	buf := new(bytes.Buffer)
+	buf.WriteByte('[')
+	for _, slice := range slices {
+		buf.WriteString(fmt.Sprintf("\n%s\t%x,", indent, slice))
+	}
+	buf.WriteString(fmt.Sprintf("\n%s]", indent))
+	return buf.String()
+}
