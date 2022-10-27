@@ -20,8 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ThinkiumGroup/go-common"
 )
 
 // Event is an event potentially triggered by the EVM's LOG mechanism. The Event
@@ -85,7 +84,7 @@ func NewEvent(name, rawName string, anonymous bool, inputs Arguments) Event {
 
 	str := fmt.Sprintf("event %v(%v)", rawName, strings.Join(names, ", "))
 	sig := fmt.Sprintf("%v(%v)", rawName, strings.Join(types, ","))
-	id := common.BytesToHash(crypto.Keccak256([]byte(sig)))
+	id := common.BytesToHash(common.SystemHash256([]byte(sig)))
 
 	return Event{
 		Name:      name,

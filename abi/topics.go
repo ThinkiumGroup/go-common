@@ -23,8 +23,7 @@ import (
 	"math/big"
 	"reflect"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ThinkiumGroup/go-common"
 )
 
 // MakeTopics converts a filter query argument list into a filter topic set.
@@ -68,10 +67,10 @@ func MakeTopics(query ...[]interface{}) ([][]common.Hash, error) {
 				blob := new(big.Int).SetUint64(rule).Bytes()
 				copy(topic[common.HashLength-len(blob):], blob)
 			case string:
-				hash := crypto.Keccak256Hash([]byte(rule))
+				hash := common.Hash256([]byte(rule))
 				copy(topic[:], hash[:])
 			case []byte:
-				hash := crypto.Keccak256Hash(rule)
+				hash := common.Hash256(rule)
 				copy(topic[:], hash[:])
 
 			default:

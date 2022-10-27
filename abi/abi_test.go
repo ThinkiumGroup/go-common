@@ -26,9 +26,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ThinkiumGroup/go-common"
+	"github.com/ThinkiumGroup/go-common/math"
 )
 
 const jsondata = `
@@ -241,7 +240,7 @@ func TestMethodSignature(t *testing.T) {
 		t.Error("signature mismatch", exp, "!=", m.Sig)
 	}
 
-	idexp := crypto.Keccak256([]byte(exp))[:4]
+	idexp := common.SystemHash256([]byte(exp))[:4]
 	if !bytes.Equal(m.ID, idexp) {
 		t.Errorf("expected ids to match %x != %x", m.ID, idexp)
 	}
@@ -315,7 +314,7 @@ func TestMultiPack(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sig := crypto.Keccak256([]byte("bar(uint32,uint16)"))[:4]
+	sig := common.SystemHash256([]byte("bar(uint32,uint16)"))[:4]
 	sig = append(sig, make([]byte, 64)...)
 	sig[35] = 10
 	sig[67] = 11
@@ -972,7 +971,7 @@ func TestABI_MethodById(t *testing.T) {
 		}
 	}
 	// test unsuccessful lookups
-	if _, err = abi.MethodById(crypto.Keccak256()); err == nil {
+	if _, err = abi.MethodById(common.SystemHash256()); err == nil {
 		t.Error("Expected error: no method with this id")
 	}
 	// Also test empty
@@ -1030,7 +1029,7 @@ func TestABI_EventById(t *testing.T) {
 		}
 
 		topic := test.event
-		topicID := crypto.Keccak256Hash([]byte(topic))
+		topicID := common.Hash256([]byte(topic))
 
 		event, err := abi.EventByID(topicID)
 		if err != nil {
@@ -1042,7 +1041,7 @@ func TestABI_EventById(t *testing.T) {
 			t.Errorf("Event id %s does not match topic %s, test #%d", event.ID.Hex(), topicID.Hex(), testnum)
 		}
 
-		unknowntopicID := crypto.Keccak256Hash([]byte("unknownEvent"))
+		unknowntopicID := common.Hash256([]byte("unknownEvent"))
 		unknownEvent, err := abi.EventByID(unknowntopicID)
 		if err == nil {
 			t.Errorf("EventByID should return an error if a topic is not found, test #%d", testnum)

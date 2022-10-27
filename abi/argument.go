@@ -109,6 +109,17 @@ func (arguments Arguments) UnpackIntoMap(v map[string]interface{}, data []byte) 
 	return nil
 }
 
+func (arguments Arguments) UnpackIntoInterface(v interface{}, data []byte) error {
+	if v == nil {
+		return errors.New("abi: cannot unpack into a nil interface")
+	}
+	unpacked, err := arguments.Unpack(data)
+	if err != nil {
+		return err
+	}
+	return arguments.Copy(v, unpacked)
+}
+
 // Copy performs the operation go format -> provided struct.
 func (arguments Arguments) Copy(v interface{}, values []interface{}) error {
 	// make sure the passed value is arguments pointer

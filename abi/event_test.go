@@ -25,8 +25,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ThinkiumGroup/go-common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -91,8 +90,8 @@ func TestEventId(t *testing.T) {
 			{ "type" : "event", "name" : "Check", "inputs": [{ "name" : "t", "type": "address" }, { "name": "b", "type": "uint256" }] }
 			]`,
 			expectations: map[string]common.Hash{
-				"Balance": crypto.Keccak256Hash([]byte("Balance(uint256)")),
-				"Check":   crypto.Keccak256Hash([]byte("Check(address,uint256)")),
+				"Balance": common.Hash256([]byte("Balance(uint256)")),
+				"Check":   common.Hash256([]byte("Check(address,uint256)")),
 			},
 		},
 	}

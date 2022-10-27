@@ -23,8 +23,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ThinkiumGroup/go-common"
 )
 
 // The ABI holds information about a contract's context and available
@@ -233,7 +232,7 @@ func (abi *ABI) HasReceive() bool {
 }
 
 // revertSelector is a special function selector for revert reason unpacking.
-var revertSelector = crypto.Keccak256([]byte("Error(string)"))[:4]
+var revertSelector = common.SystemHash256([]byte("Error(string)"))[:4]
 
 // UnpackRevert resolves the abi-encoded revert reason. According to the solidity
 // spec https://solidity.readthedocs.io/en/latest/control-structures.html#revert,
@@ -252,4 +251,85 @@ func UnpackRevert(data []byte) (string, error) {
 		return "", err
 	}
 	return unpacked[0].(string), nil
+}
+
+func (abi ABI) PackInputWithoutID(name string, args ...interface{}) ([]byte, error) {
+	if name == "" {
+		return nil, nil
+	}
+	method, exist := abi.Methods[name]
+	if !exist {
+		return nil, fmt.Errorf("method '%s' not found", name)
+	}
+	return method.Inputs.Pack(args...)
+}
+
+func (abi ABI) InputUnpack(v map[string]interface{}, name string, inputParam []byte) (err error) {
+
+	// whether the input data is correct
+	if len(inputParam) == 0 {
+		return errors.New("abi: unmarshalling empty input")
+	} else if len(inputParam)%32 != 0 {
+		return errors.New("abi: improperly formatted input")
+	}
+
+	// get abi method information
+	if method, ok := abi.Methods[name]; ok {
+		return method.Inputs.UnpackIntoMap(v, inputParam)
+	}
+	return errors.New("abi: could not locate named method")
+}
+
+func (abi ABI) UnpackInput(v interface{}, name string, data []byte) error {
+	if method, ok := abi.Methods[name]; ok {
+		return method.Inputs.UnpackIntoInterface(v, data)
+	}
+	return errors.New("abi: could not locate named method")
+}
+
+func (abi ABI) PackReturns(name string, args ...interface{}) ([]byte, error) {
+	// Fetch the ABI of the requested method
+	if name == "" {
+		return nil, nil
+	}
+	method, exist := abi.Methods[name]
+	if !exist {
+		return nil, fmt.Errorf("method '%s' not found", name)
+	}
+	returns, err := method.Outputs.Pack(args...)
+	if err != nil {
+		return nil, err
+	}
+	// Pack up the method ID too if not a constructor and return
+	return returns, nil
+}
+
+func (abi ABI) UnpackReturnsMap(v map[string]interface{}, name string, returns []byte) (err error) {
+	// whether the input data is correct
+	if len(returns) == 0 {
+		return errors.New("abi: unmarshalling empty input")
+	} else if len(returns)%32 != 0 {
+		return errors.New("abi: improperly formatted input")
+	}
+
+	// get abi method information
+	if method, ok := abi.Methods[name]; ok {
+		return method.Outputs.UnpackIntoMap(v, returns)
+	}
+	return errors.New("abi: could not locate named method")
+}
+
+func (abi ABI) UnpackReturns(v interface{}, name string, returns []byte) error {
+	// whether the input data is correct
+	if len(returns) == 0 {
+		return errors.New("abi: unmarshalling empty input")
+	} else if len(returns)%32 != 0 {
+		return errors.New("abi: improperly formatted input")
+	}
+
+	// get abi method information
+	if method, ok := abi.Methods[name]; ok {
+		return method.Outputs.UnpackIntoInterface(v, returns)
+	}
+	return errors.New("abi: could not locate named method")
 }

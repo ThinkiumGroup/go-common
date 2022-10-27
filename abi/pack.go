@@ -22,15 +22,15 @@ import (
 	"math/big"
 	"reflect"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ThinkiumGroup/go-common"
+	"github.com/ThinkiumGroup/go-common/math"
 )
 
 // packBytesSlice packs the given bytes as [L, V] as the canonical representation
 // bytes slice.
 func packBytesSlice(bytes []byte, l int) []byte {
-	len := packNum(reflect.ValueOf(l))
-	return append(len, common.RightPadBytes(bytes, (l+31)/32*32)...)
+	length := packNum(reflect.ValueOf(l))
+	return append(length, common.RightPadBytes(bytes, (l+31)/32*32)...)
 }
 
 // packElement packs the given reflect value according to the abi specification in
@@ -49,9 +49,9 @@ func packElement(t Type, reflectValue reflect.Value) ([]byte, error) {
 		return common.LeftPadBytes(reflectValue.Bytes(), 32), nil
 	case BoolTy:
 		if reflectValue.Bool() {
-			return math.PaddedBigBytes(common.Big1, 32), nil
+			return math.PaddedBigBytes(math.Big1, 32), nil
 		}
-		return math.PaddedBigBytes(common.Big0, 32), nil
+		return math.PaddedBigBytes(math.Big0, 32), nil
 	case BytesTy:
 		if reflectValue.Kind() == reflect.Array {
 			reflectValue = mustArrayToByteSlice(reflectValue)
