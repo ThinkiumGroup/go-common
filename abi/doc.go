@@ -14,31 +14,13 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
+// Package abi implements the Ethereum ABI (Application Binary
+// Interface).
+//
+// The Ethereum ABI is strongly typed, known at compile time
+// and static. This ABI will handle basic type casting; unsigned
+// to signed and visa versa. It does not handle slice casting such
+// as unsigned slice to signed slice. Bit size type casting is also
+// handled. ints with a bit size of 32 will be properly cast to int256,
+// etc.
 package abi
-
-import (
-	"math/big"
-	"reflect"
-
-	"github.com/ThinkiumGroup/go-common"
-	"github.com/ThinkiumGroup/go-common/math"
-)
-
-var (
-	bigT      = reflect.TypeOf(&big.Int{})
-	derefbigT = reflect.TypeOf(big.Int{})
-	uint8T    = reflect.TypeOf(uint8(0))
-	uint16T   = reflect.TypeOf(uint16(0))
-	uint32T   = reflect.TypeOf(uint32(0))
-	uint64T   = reflect.TypeOf(uint64(0))
-	int8T     = reflect.TypeOf(int8(0))
-	int16T    = reflect.TypeOf(int16(0))
-	int32T    = reflect.TypeOf(int32(0))
-	int64T    = reflect.TypeOf(int64(0))
-	addressT  = reflect.TypeOf(common.Address{})
-)
-
-// U256 converts a big Int into a 256bit EVM number.
-func U256(n *big.Int) []byte {
-	return math.PaddedBigBytes(math.U256(n), 32)
-}
