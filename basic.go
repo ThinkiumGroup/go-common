@@ -1055,6 +1055,13 @@ func (h *Height) Equal(o *Height) bool {
 	return *h == *o
 }
 
+func (h Height) FromBig(bi *big.Int) (height Height, ok bool) {
+	if bi == nil || bi.Sign() < 0 || bi.Cmp(math2.BigMaxUint64) > 0 {
+		return NilHeight, false
+	}
+	return Height(bi.Uint64()), true
+}
+
 func (h *Height) String() string {
 	if h == nil {
 		return ""

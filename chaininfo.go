@@ -21,10 +21,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/ThinkiumGroup/go-common/math"
 )
 
 type (
@@ -508,6 +511,13 @@ func BytesToChainID(bs []byte) ChainID {
 
 func (id ChainID) Formalize() []byte {
 	return id.Bytes()
+}
+
+func (id ChainID) FromBig(bi *big.Int) (cid ChainID, ok bool) {
+	if bi == nil || bi.Sign() < 0 || bi.Cmp(math.BigMaxUint32) > 0 {
+		return NilChainID, false
+	}
+	return ChainID(uint32(bi.Uint64())), true
 }
 
 func (id ChainID) String() string {

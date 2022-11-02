@@ -40,6 +40,7 @@ var (
 	Big256       = big.NewInt(256)
 	Big257       = big.NewInt(257)
 	BigMaxUint32 = big.NewInt(MaxUint32)
+	BigMaxUint64 = new(big.Int).SetUint64(MaxUint64)
 
 	Rat1 = big.NewRat(1, 1)
 )
@@ -611,4 +612,12 @@ func (b *BigInt) HexString() string {
 		return fmt.Sprintf("-%x", bs)
 	}
 	return fmt.Sprintf("%x", bs)
+}
+
+func (b *BigInt) ToUint64() (u uint64, ok bool) {
+	i := (*big.Int)(b)
+	if i == nil || i.Sign() < 0 || i.Cmp(BigMaxUint64) > 0 {
+		return 0, false
+	}
+	return i.Uint64(), true
 }

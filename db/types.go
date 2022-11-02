@@ -136,6 +136,8 @@ var (
 	KPBridgeReqTrieValue = []byte("bd") // sub-chain: bridge request trie value
 	KPBridgeReqNode      = []byte("bf") // sub-chain: bridge request node
 	KPBridgeReqValue     = []byte("bg") // sub-chain: bridge request value
+	KPBridgeRespNode     = []byte("bk") // sub-chain: bridge response node
+	KPBridgeRespValue    = []byte("bl") // sub-chain: bridge respose value
 	KPBridgeInfoNode     = []byte("bi") // main-chain: bridge info node
 	KPBridgeInfoValue    = []byte("bj") // main-chain: bridge info value
 
