@@ -44,6 +44,15 @@ func (r *RevertableTrie) Copy() *RevertableTrie {
 	return ret
 }
 
+func (r *RevertableTrie) LiveTrie() (*Trie, error) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	if err := r.checkLiveLocked(); err != nil {
+		return nil, err
+	}
+	return r.Live, nil
+}
+
 func (r *RevertableTrie) Rebase(dbase db.Database) (*RevertableTrie, error) {
 	if r == nil {
 		return nil, nil
