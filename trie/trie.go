@@ -501,7 +501,7 @@ func (t *Trie) delete(startNode *node, prefixString []byte, offset int) (changed
 	// log.Debugf("TRIE delete %s", prefixToHexstring(prefixString[offset:]))
 	// expand node if it's collapsed
 	if err := t.fullExpand(startNode); err != nil {
-		return false, false, startNode
+		return false, false, nil
 	}
 
 	// return unchange if current node is empty
