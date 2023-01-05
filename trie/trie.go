@@ -775,32 +775,43 @@ func (t *Trie) ValueString() string {
 	return buf.String()
 }
 
-func (t *Trie) iteratePrintNodes(buf *bytes.Buffer, prefix string, node *node) {
-	if node == nil {
-		return
-	}
-	curprefix := prefix + string(prefixToHexstring(node.prefix))
-	if node.hasValue() {
-		buf.WriteString(curprefix)
-		buf.WriteString(fmt.Sprintf(".value=%v\n", node.value))
-	}
-	for i := 0; i < childrenLength; i++ {
-		if node.hasChild(i) {
-			child := node.children[i]
-			t.iteratePrintNodes(buf, fmt.Sprintf("%s%c", curprefix, valuebyteToHexbyteArray[i]), child)
-		}
-	}
-}
+// func (t *Trie) iteratePrintNodes(buf *bytes.Buffer, prefix string, node *node) {
+// 	if node == nil {
+// 		return
+// 	}
+// 	curprefix := prefix + string(prefixToHexstring(node.prefix))
+// 	if node.hasValue() {
+// 		buf.WriteString(curprefix)
+// 		buf.WriteString(fmt.Sprintf(".value=%v\n", node.value))
+// 	}
+// 	for i := 0; i < childrenLength; i++ {
+// 		if node.hasChild(i) {
+// 			child := node.children[i]
+// 			t.iteratePrintNodes(buf, fmt.Sprintf("%s%c", curprefix, valuebyteToHexbyteArray[i]), child)
+// 		}
+// 	}
+// }
 
 func (t *Trie) iteratePrint(buf *bytes.Buffer, prefix string, node *node, valueOnly bool) {
 	if node == nil {
 		return
+	}
+	if node.isCollapsed() {
+		if err := t.expandNode(node); err != nil {
+			log.Errorf("iteratePrint: expand node %s failed: %v", node, err)
+			return
+		}
 	}
 	p := prefix
 	if len(prefix) > 0 {
 		p = prefix + "."
 	}
 	if valueOnly == false || (valueOnly && node.hasValue()) {
+		if node.isValueCollapsed() {
+			if err := t.expandNodeValue(node); err != nil {
+				log.Errorf("iteratePrint: expand value %s failed: %v", node, err)
+			}
+		}
 		buf.WriteString(p)
 		buf.WriteString(node.print())
 		buf.WriteString("\n")

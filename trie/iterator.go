@@ -254,12 +254,12 @@ func (it *trieValueIterator) Next() bool {
 	node := it.nit.Next(func(t *Trie, n *node) bool {
 		if n.isCollapsed() {
 			if err := t.expandNode(n); err != nil {
-				log.Errorf("expand node %s failed: %v", n, err)
+				log.Errorf("Next: expand node %s failed: %v", n, err)
 			}
 		}
 		if n.isValueCollapsed() {
 			if err := t.expandNodeValue(n); err != nil {
-				log.Errorf("expand value %s failed: %v", n, err)
+				log.Errorf("Next: expand value %s failed: %v", n, err)
 			}
 		}
 		return n.hasValue()
