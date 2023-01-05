@@ -554,6 +554,34 @@ func (ids ChainIDs) Clone() ChainIDs {
 	return ret
 }
 
+func (ids ChainIDs) Equal(os ChainIDs) bool {
+	if ids == nil && os == nil {
+		return true
+	}
+	if ids == nil || os == nil {
+		return false
+	}
+	if len(ids) != len(os) {
+		return false
+	}
+	for i := 0; i < len(ids); i++ {
+		if ids[i] != os[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func (ids ChainIDs) String() string {
+	if ids == nil {
+		return "<nil>"
+	}
+	if len(ids) == 0 {
+		return "[]"
+	}
+	return fmt.Sprintf("%s", []ChainID(ids))
+}
+
 func NewChainStruct(id, parentId ChainID) (cs *ChainStruct, err error) {
 	if id.IsNil() {
 		return nil, errors.New("illegal chain id")
