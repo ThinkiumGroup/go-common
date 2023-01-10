@@ -80,6 +80,21 @@ func (abi ABI) Pack(name string, args ...interface{}) ([]byte, error) {
 	return append(method.ID, arguments...), nil
 }
 
+func (abi ABI) PackEventArgs(name string, args ...interface{}) ([]byte, error) {
+	event, ok := abi.Events[name]
+	if !ok {
+		return nil, fmt.Errorf("event '%s' not found", name)
+	}
+	if event.Inputs == nil {
+		return nil, fmt.Errorf("abi: could not locate named event: %s", name)
+	}
+	nonIndexed := event.Inputs.NonIndexed()
+	if nonIndexed == nil {
+		return nil, fmt.Errorf("abi: no non-indexed args for event '%s' found", name)
+	}
+	return nonIndexed.Pack(args...)
+}
+
 func (abi ABI) getArguments(name string, data []byte) (Arguments, error) {
 	// since there can't be naming collisions with contracts and events,
 	// we need to decide whether we're calling a method or an event
