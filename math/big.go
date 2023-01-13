@@ -592,9 +592,9 @@ func (b *BigInt) CompareInt(i *big.Int) int {
 	return CompareBigInt((*big.Int)(b), i)
 }
 
-func (b *BigInt) MustPositive() *big.Int {
+func (b *BigInt) MustPositive() *BigInt {
 	if b.Positive() {
-		return (*big.Int)(b)
+		return b
 	}
 	return nil
 }
