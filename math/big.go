@@ -515,6 +515,24 @@ func (b *BigInt) AddInt(a *big.Int) *BigInt {
 	}
 }
 
+func (b *BigInt) AddInts(is ...*big.Int) *BigInt {
+	if len(is) == 0 {
+		return b
+	}
+	c := (*big.Int)(b)
+	for _, i := range is {
+		if i == nil || i.Sign() == 0 {
+			continue
+		}
+		if c == nil {
+			c = new(big.Int).Set(i)
+		} else {
+			c.Add(c, i)
+		}
+	}
+	return (*BigInt)(c)
+}
+
 func (b *BigInt) Sub(a *BigInt) *BigInt {
 	return b.SubInt((*big.Int)(a))
 }
@@ -531,6 +549,22 @@ func (b *BigInt) SubInt(a *big.Int) *BigInt {
 	}
 	c.Sub(c, a)
 	return (*BigInt)(c)
+}
+
+// if b<=0, always return (b, nil)
+// subtranhend cannot less than zero
+func (b *BigInt) SubIntNotLessZero(subtrahend *big.Int) (left *BigInt, actualSubtrahend *BigInt) {
+	if subtrahend == nil || subtrahend.Sign() <= 0 {
+		return b, nil
+	}
+	if b == nil || b.Sign() <= 0 {
+		return b, nil
+	}
+	if b.CompareInt(subtrahend) > 0 {
+		return b.Clone().SubInt(subtrahend), NewBigInt(subtrahend)
+	}
+	// b <= subtrahend
+	return nil, b.Clone()
 }
 
 func (b *BigInt) Mul(a *BigInt) *BigInt {
