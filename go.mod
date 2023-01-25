@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/ThinkiumGroup/go-cipher v1.0.206
+	github.com/davecgh/go-spew v1.1.1
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
@@ -11,6 +12,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sirupsen/logrus v1.7.0
 	github.com/stephenfire/go-rtl v1.0.4
+	github.com/stretchr/testify v1.4.0
 	github.com/syndtr/goleveldb v1.0.0
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 // indirect

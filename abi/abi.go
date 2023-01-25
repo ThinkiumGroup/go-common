@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 
 	"github.com/ThinkiumGroup/go-common"
 )
@@ -347,4 +348,88 @@ func (abi ABI) UnpackReturns(v interface{}, name string, returns []byte) error {
 		return method.Outputs.UnpackIntoInterface(v, returns)
 	}
 	return errors.New("abi: could not locate named method")
+}
+
+func (abi ABI) MethodString(input []byte) (string, error) {
+	method, err := abi.MethodById(input[:4])
+	if err != nil || method == nil {
+		return "", fmt.Errorf("method is missing: %v", err)
+	}
+	args := method.Inputs
+	if len(args) == 0 {
+		return fmt.Sprintf("%s()", method.Name), nil
+	}
+	values, err := args.Unpack(input[4:])
+	if err != nil {
+		return "", err
+	}
+	if len(args) != len(values) {
+		return "", errors.New("values not match with args")
+	}
+	buf := new(bytes.Buffer)
+	buf.WriteString(method.Name)
+	buf.WriteByte('(')
+	for i, arg := range args {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		val := values[i]
+		typ := reflect.TypeOf(val)
+		if (typ.Kind() == reflect.Slice || typ.Kind() == reflect.Array) && typ.Elem().Kind() == reflect.Uint8 {
+			buf.WriteString(fmt.Sprintf("%s:%x", arg.Name, val))
+		} else {
+			buf.WriteString(fmt.Sprintf("%s:%v", arg.Name, val))
+		}
+	}
+	buf.WriteByte(')')
+	return buf.String(), nil
+}
+
+func (abi ABI) EventString(topics []common.Hash, data []byte) (string, error) {
+	if len(topics) == 0 {
+		return "", errors.New("empty topics")
+	}
+	event, err := abi.EventByID(topics[0])
+	if err != nil || event == nil {
+		return "", fmt.Errorf("event is missing: %v", err)
+	}
+	args := event.Inputs
+	dataArgs := args.NonIndexed()
+	var values []interface{}
+	if len(data) > 0 {
+		values, err = dataArgs.Unpack(data)
+		if err != nil {
+			return "", err
+		}
+	}
+	if len(dataArgs) != len(values) {
+		return "", errors.New("values not match with data args")
+	}
+	buf := new(bytes.Buffer)
+	buf.WriteString(event.Name)
+	buf.WriteByte('(')
+	indexes := 0
+	for i, arg := range args {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		if arg.Indexed {
+			indexes++
+			j := 1 + i
+			if j >= len(topics) {
+				return "", fmt.Errorf("%d topic is missing", j)
+			}
+			buf.WriteString(fmt.Sprintf("%s:%x", arg.Name, topics[j].Bytes()))
+		} else {
+			val := values[i-indexes]
+			typ := reflect.TypeOf(val)
+			if (typ.Kind() == reflect.Slice || typ.Kind() == reflect.Array) && typ.Elem().Kind() == reflect.Uint8 {
+				buf.WriteString(fmt.Sprintf("%s:%x", arg.Name, val))
+			} else {
+				buf.WriteString(fmt.Sprintf("%s:%v", arg.Name, val))
+			}
+		}
+	}
+	buf.WriteByte(')')
+	return buf.String(), nil
 }
