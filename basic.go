@@ -910,10 +910,10 @@ func (h Height) Diff(o Height) (diff uint64, cmpRet int) {
 		return 0, 0
 	}
 	if h.IsNil() {
-		return math.MaxUint64, -1
+		return uint64(o) + 1, -1
 	}
 	if o.IsNil() {
-		return math.MaxUint64, 1
+		return uint64(h) + 1, 1
 	}
 	if h < o {
 		return uint64(o - h), -1
