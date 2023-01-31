@@ -769,7 +769,7 @@ func ValuesMerkleTreeHash(values interface{}, toBeProof int, proofs *MerkleProof
 // If proofs is not nil, put the merkle tree proof of the value of hashList[tobeproof] into proofs in order
 // Return error is not nil if there's an error, []byte is meaningless. Proofs DOES NOT GUARANTEE no change at this time
 // toBeProof is the index of the object to be proved in the hashlist array
-func MerkleHashComplete(hashList [][]byte, toBeProof int, proofs *MerkleProofs) ([]byte, error) {
+func MerkleHashCompleteOld(hashList [][]byte, toBeProof int, proofs *MerkleProofs) ([]byte, error) {
 	if len(hashList) == 0 {
 		return CopyBytes(NilHashSlice), nil
 	}
@@ -802,6 +802,73 @@ func MerkleHashComplete(hashList [][]byte, toBeProof int, proofs *MerkleProofs) 
 					proofs.Append(BytesToHash(hashList[p2]), false)
 				} else if toBeProof == p2 {
 					proofs.Append(BytesToHash(hashList[p1]), true)
+				}
+			}
+		}
+		hashList = b
+		if toBeProof >= 0 {
+			// Because toBeProof is a signed integer, arithmetic shift is performed, and the
+			// negative sign will not be lost, so there will be no situation where the negative
+			// shift becomes 0
+			toBeProof >>= 1
+		}
+	}
+
+	if proofs != nil && toBeProof < 0 {
+		// When proof is needed, and the index is less than 0, it means that only the root Hash
+		// needs to be saved, and the sequence value is useless at this time
+		// Used to prove the value of a node with children
+		proofs.Append(BytesToHash(hashList[0]), false)
+	}
+	return hashList[0], nil
+}
+
+func MerkleHashComplete(hashList [][]byte, toBeProof int, proofs *MerkleProofs) ([]byte, error) {
+	if len(hashList) == 0 {
+		return CopyBytes(NilHashSlice), nil
+	}
+
+	// Find the smallest power value of 2 greater than the length of hashList and fill it with
+	// NilHash value, which is used as the leaf node of balanced binary tree
+	max := 2
+	for max < len(hashList) {
+		max <<= 1
+	}
+	// for i := len(hashList); i < max; i++ {
+	// 	hashList = append(hashList, CopyBytes(NilHashSlice))
+	// }
+
+	hashVal := func(p int) []byte {
+		if p >= len(hashList) {
+			return NilHashSlice
+		}
+		return hashList[p]
+	}
+
+	b := make([][]byte, max>>1)
+	// var hh []byte
+
+	for max > 1 {
+		// Calculate the value of each layer of the balanced binary tree from bottom to top
+		max >>= 1
+		// b := make([][]byte, max)
+		for i := 0; i < max; i++ {
+			p1 := i << 1
+			p2 := p1 + 1
+			ba := hashVal(p1)
+			bb := hashVal(p2)
+			b[i] = HashPair(ba, bb)
+			// p1 := 2 * i
+			// p2 := p1 + 1
+			// // Calculate hashes adjacent to each other
+			// hh = HashPair(hashList[p1], hashList[p2])
+			// b[i] = hh
+
+			if proofs != nil && toBeProof >= 0 {
+				if toBeProof == p1 {
+					proofs.Append(BytesToHash(bb), false)
+				} else if toBeProof == p2 {
+					proofs.Append(BytesToHash(ba), true)
 				}
 			}
 		}

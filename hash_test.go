@@ -16,6 +16,7 @@ package common
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -24,6 +25,45 @@ import (
 
 	"github.com/stephenfire/go-rtl"
 )
+
+func _testMerkleHashCompleted(length int) error {
+	randomHashs := make([][]byte, length)
+	for i := 0; i < length; i++ {
+		randomHashs[i] = RandomBytes(HashLength)
+	}
+	h1, err := MerkleHashCompleteOld(randomHashs, -1, nil)
+	if err != nil {
+		return err
+	}
+	h2, err := MerkleHashComplete(randomHashs, -1, nil)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(h1, h2) {
+		return errors.New("hash not match")
+	}
+	for i := 0; i < length; i++ {
+		p1 := NewMerkleProofs()
+		p2 := NewMerkleProofs()
+		_, _ = MerkleHashCompleteOld(randomHashs, i, p1)
+		_, _ = MerkleHashComplete(randomHashs, i, p2)
+		if !p1.Equal(p2) {
+			return fmt.Errorf("proof of index:%d not match", i)
+		}
+	}
+	return nil
+}
+
+func TestMerkleHashCompleted(t *testing.T) {
+	l := 100
+	for i := 1; i < l; i++ {
+		if err := _testMerkleHashCompleted(i); err != nil {
+			t.Fatalf("failed at i=%d: %v", i, err)
+		} else {
+			t.Logf("i=%d check", i)
+		}
+	}
+}
 
 func TestEncodeHash(t *testing.T) {
 	i := 10

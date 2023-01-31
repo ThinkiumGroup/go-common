@@ -163,7 +163,7 @@ func (p ProofType) IsProofHeaderProperty() (headerIndex int, ok bool) {
 	case ProofHeaderHdsRoot:
 		return 20, true
 	default:
-		if p >= ProofHeaderBase && p < ProofHeaderLimit {
+		if p >= ProofHeaderBase && p < ProofExistence {
 			return int(p - ProofHeaderBase), true
 		}
 		return 0, false

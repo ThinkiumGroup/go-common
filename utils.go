@@ -47,8 +47,19 @@ func ReverseBytes(bs []byte) []byte {
 
 func RandomBytes(length int) []byte {
 	b := make([]byte, length)
-	io.ReadFull(rand.Reader, b)
+	_, _ = io.ReadFull(rand.Reader, b)
 	return b
+}
+
+func RandomByteSlices(count, size int) [][]byte {
+	if count == 0 {
+		return [][]byte{}
+	}
+	r := make([][]byte, count)
+	for i := 0; i < count; i++ {
+		r[i] = RandomBytes(size)
+	}
+	return r
 }
 
 func HomeDir() string {

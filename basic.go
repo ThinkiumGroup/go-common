@@ -1572,6 +1572,11 @@ func BytesToSeed(b []byte) Seed {
 	return s
 }
 
+func BytesToSeedP(b []byte) *Seed {
+	s := BytesToSeed(b)
+	return &s
+}
+
 func (s *Seed) Generate() error {
 	id := make([]byte, SeedLength)
 	n, err := io.ReadFull(rand.Reader, id)
@@ -1603,6 +1608,16 @@ func (s *Seed) IsZero() bool {
 		return false
 	}
 	return *s == zeroSeed
+}
+
+func (s *Seed) Equal(o *Seed) bool {
+	if s == o {
+		return true
+	}
+	if s == nil || o == nil {
+		return false
+	}
+	return *s == *o
 }
 
 func (s *Seed) Equals(v interface{}) bool {
