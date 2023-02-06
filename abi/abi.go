@@ -350,6 +350,26 @@ func (abi ABI) UnpackReturns(v interface{}, name string, returns []byte) error {
 	return errors.New("abi: could not locate named method")
 }
 
+func (abi ABI) _argString(name string, value interface{}) string {
+	typ := reflect.TypeOf(value)
+	if typ.Kind() == reflect.Slice && typ.Elem().Kind() == reflect.Uint8 {
+		return fmt.Sprintf("%s:0x%x", name, value)
+	} else if typ.Kind() == reflect.Array && typ.Elem().Kind() == reflect.Uint8 {
+		val := reflect.ValueOf(value)
+		if !val.CanAddr() {
+			// reflect.Value.Slice() requires the value must be addressable
+			cp := reflect.New(typ).Elem()
+			cp.Set(val)
+			val = cp
+		}
+
+		bs := val.Slice(0, val.Len()).Bytes()
+		return fmt.Sprintf("%s:0x%x", name, bs)
+	} else {
+		return fmt.Sprintf("%s:%v", name, value)
+	}
+}
+
 func (abi ABI) MethodString(input []byte) (string, error) {
 	method, err := abi.MethodById(input[:4])
 	if err != nil || method == nil {
@@ -373,13 +393,7 @@ func (abi ABI) MethodString(input []byte) (string, error) {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
-		val := values[i]
-		typ := reflect.TypeOf(val)
-		if (typ.Kind() == reflect.Slice || typ.Kind() == reflect.Array) && typ.Elem().Kind() == reflect.Uint8 {
-			buf.WriteString(fmt.Sprintf("%s:%x", arg.Name, val))
-		} else {
-			buf.WriteString(fmt.Sprintf("%s:%v", arg.Name, val))
-		}
+		buf.WriteString(abi._argString(arg.Name, values[i]))
 	}
 	buf.WriteByte(')')
 	return buf.String(), nil
@@ -419,15 +433,14 @@ func (abi ABI) EventString(topics []common.Hash, data []byte) (string, error) {
 			if j >= len(topics) {
 				return "", fmt.Errorf("%d topic is missing", j)
 			}
-			buf.WriteString(fmt.Sprintf("%s:%x", arg.Name, topics[j].Bytes()))
+			value, err := toGoType(0, arg.Type, topics[j][:])
+			if err != nil {
+				return "", fmt.Errorf("%d topic unpack failed: %v", j, err)
+			}
+			buf.WriteString(abi._argString(arg.Name, value))
 		} else {
 			val := values[i-indexes]
-			typ := reflect.TypeOf(val)
-			if (typ.Kind() == reflect.Slice || typ.Kind() == reflect.Array) && typ.Elem().Kind() == reflect.Uint8 {
-				buf.WriteString(fmt.Sprintf("%s:%x", arg.Name, val))
-			} else {
-				buf.WriteString(fmt.Sprintf("%s:%v", arg.Name, val))
-			}
+			buf.WriteString(abi._argString(arg.Name, val))
 		}
 	}
 	buf.WriteByte(')')
