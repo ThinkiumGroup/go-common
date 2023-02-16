@@ -595,7 +595,7 @@ func (t *Trie) expandNode(node *node) error {
 	}
 	buf := rtl.NewValueReader(bytes.NewBuffer(nodebytes), 256)
 	if err = rtl.Decode(buf, node); err != nil {
-		return fmt.Errorf("decode nodebytes@[%x] error: %v", hashes, err)
+		return fmt.Errorf("decode nodebytes@[%x] DA:%s error: %v", hashes, t.nodeAdapter, err)
 	}
 	if node.inErrorStatus() {
 		log.Warnf("[BUGFIX] an error node found:%v, nodeHash:%x, nodeValue:%x", node, hashes, nodebytes)

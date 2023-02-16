@@ -15,6 +15,8 @@
 package db
 
 import (
+	"fmt"
+
 	"github.com/ThinkiumGroup/go-common"
 )
 
@@ -80,6 +82,10 @@ func NewKeyPrefixedDataAdapter(database Database, keyPrefix []byte) DataAdapter 
 		ret.keyPrefix = nil
 	}
 	return ret
+}
+
+func (k *keyPrefixedDataAdapter) String() string {
+	return fmt.Sprintf("KeyPrefixed(%x)", k.keyPrefix)
 }
 
 func (k *keyPrefixedDataAdapter) Clone() DataAdapter {
@@ -151,6 +157,10 @@ type transparentDataAdapter struct{}
 
 func NewTransparentDataAdapter() DataAdapter {
 	return &transparentDataAdapter{}
+}
+
+func (t *transparentDataAdapter) String() string {
+	return "transparent"
 }
 
 func (t *transparentDataAdapter) Load(key []byte) (value []byte, err error) {
