@@ -32,6 +32,8 @@ const (
 	maxValLength = 4096
 )
 
+var CheckNodeValueHash = false
+
 func init() {
 	dbase := db.NewMemDB()
 	defer func() {

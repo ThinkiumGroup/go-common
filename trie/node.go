@@ -507,6 +507,18 @@ func (n *node) expandValue(adapter db.DataAdapter) error {
 		return err
 	}
 	n.value = v
+	if CheckNodeValueHash {
+		var h []byte
+		if n.valueHasher != nil {
+			h, _ = n.valueHasher(n.value, valueBytes)
+		} else {
+			h, _ = DefaultValueHasher(n.value, valueBytes)
+		}
+		if bytes.Equal(h, n.valuehash) == false {
+			log.Errorf("[TRIE] hash of %+v, have:%x want:%x", v, h, n.valuehash)
+		}
+	}
+
 	return err
 }
 
