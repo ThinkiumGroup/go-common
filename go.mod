@@ -11,7 +11,7 @@ require (
 	github.com/lestrrat-go/strftime v1.0.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sirupsen/logrus v1.7.0
-	github.com/stephenfire/go-rtl v1.1.0
+	github.com/stephenfire/go-rtl v1.1.1
 	github.com/stretchr/testify v1.4.0
 	github.com/syndtr/goleveldb v1.0.0
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
