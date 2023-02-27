@@ -350,7 +350,7 @@ func (abi ABI) UnpackReturns(v interface{}, name string, returns []byte) error {
 	return errors.New("abi: could not locate named method")
 }
 
-func (abi ABI) _argString(name string, value interface{}) string {
+func (ABI) _argString(name string, value interface{}) string {
 	typ := reflect.TypeOf(value)
 	if typ.Kind() == reflect.Slice && typ.Elem().Kind() == reflect.Uint8 {
 		return fmt.Sprintf("%s:0x%x", name, value)
@@ -370,7 +370,24 @@ func (abi ABI) _argString(name string, value interface{}) string {
 	}
 }
 
+func (abi ABI) _argsValuesString(args Arguments, values []interface{}) (string, error) {
+	if len(args) != len(values) {
+		return "", errors.New("values not match with args")
+	}
+	buf := new(bytes.Buffer)
+	for i, arg := range args {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		buf.WriteString(abi._argString(arg.Name, values[i]))
+	}
+	return buf.String(), nil
+}
+
 func (abi ABI) MethodString(input []byte) (string, error) {
+	if len(input) < 4 {
+		return "", errors.New("invalid input")
+	}
 	method, err := abi.MethodById(input[:4])
 	if err != nil || method == nil {
 		return "", fmt.Errorf("method is missing: %v", err)
@@ -383,20 +400,34 @@ func (abi ABI) MethodString(input []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if len(args) != len(values) {
-		return "", errors.New("values not match with args")
+	s, err := abi._argsValuesString(args, values)
+	if err != nil {
+		return "", err
 	}
-	buf := new(bytes.Buffer)
-	buf.WriteString(method.Name)
-	buf.WriteByte('(')
-	for i, arg := range args {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-		buf.WriteString(abi._argString(arg.Name, values[i]))
+	return fmt.Sprintf("%s(%s)", method.Name, s), nil
+}
+
+func (abi ABI) ReturnsString(funcSig []byte, output []byte) (string, error) {
+	if len(funcSig) < 4 {
+		return "", errors.New("invalid function signature")
 	}
-	buf.WriteByte(')')
-	return buf.String(), nil
+	method, err := abi.MethodById(funcSig[:4])
+	if err != nil || method == nil {
+		return "", fmt.Errorf("method is missing: %v", err)
+	}
+	args := method.Outputs
+	if len(args) == 0 {
+		return "returns ()", nil
+	}
+	values, err := args.Unpack(output)
+	if err != nil {
+		return "", err
+	}
+	s, err := abi._argsValuesString(args, values)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("returns (%s)", s), nil
 }
 
 func (abi ABI) EventString(topics []common.Hash, data []byte) (string, error) {
