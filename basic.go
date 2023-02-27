@@ -780,10 +780,10 @@ func (en EpochNum) Diff(o EpochNum) (diff uint64, cmpRet int) {
 		return 0, 0
 	}
 	if en.IsNil() {
-		return math.MaxUint64, -1
+		return uint64(o) + 1, -1
 	}
 	if o.IsNil() {
-		return math.MaxUint64, 1
+		return uint64(en) + 1, 1
 	}
 	if en < o {
 		return uint64(o - en), -1
