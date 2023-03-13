@@ -30,6 +30,9 @@ var (
 	SystemPrivKey cipher.ECCPrivateKey // private key of current node
 
 	ErrSignatureVerifyFailed = errors.New("signature verify failed")
+
+	EmptyPublicKey = make([]byte, RealCipher.LengthOfPublicKey())
+	EmptySignature = make([]byte, RealCipher.LengthOfSignature())
 )
 
 func PubKeyCanRecover() bool {
