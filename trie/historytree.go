@@ -38,9 +38,9 @@ const (
 // big-endian (high order first) order, and then create a complete binary
 // tree with one nibble one level of TreeNode
 type HistoryTree struct {
-	expecting uint64         // the expecting key (next key), starting from 0
-	root      *TreeNode      // root node
-	adapter   db.DataAdapter // database
+	expecting uint64              // the expecting key (next key), starting from 0
+	root      *TreeNode           // root node
+	adapter   db.DatabasedAdapter // database
 	lock      sync.Mutex
 }
 
@@ -66,7 +66,7 @@ func (h *HistoryTree) String() string {
 	return fmt.Sprintf("HistoryTree%s", h._info())
 }
 
-func _newHistoryTree(da db.DataAdapter, rootHash []byte, checkPrecedingNil bool) (*HistoryTree, error) {
+func _newHistoryTree(da db.DatabasedAdapter, rootHash []byte, checkPrecedingNil bool) (*HistoryTree, error) {
 	var expecting uint64
 	var rootNode *TreeNode
 	if len(rootHash) != common.HashLength || bytes.Compare(common.NilHashSlice, rootHash) == 0 {
@@ -99,16 +99,16 @@ func _newHistoryTree(da db.DataAdapter, rootHash []byte, checkPrecedingNil bool)
 	return tree, nil
 }
 
-func NewHistoryTree(dbase db.Database, rootHash []byte, checkPrecedingNil bool) (*HistoryTree, error) {
-	adapter := db.NewKeyPrefixedDataAdapter(dbase, db.KPHistoryNode)
+func NewHistoryTree(dbase db.Database, dbPrefix []byte, rootHash []byte, checkPrecedingNil bool) (*HistoryTree, error) {
+	adapter := db.NewKeyPrefixedDataAdapter(dbase, dbPrefix)
 	return _newHistoryTree(adapter, rootHash, checkPrecedingNil)
 }
 
-func RestoreTreeFromProofs(dbase db.Database, key uint64, value []byte, proofs ProofChain) (tree *HistoryTree, err error) {
+func RestoreTreeFromProofs(dbase db.Database, dbPrefix []byte, key uint64, value []byte, proofs ProofChain) (tree *HistoryTree, err error) {
 	if len(value) != common.HashLength {
 		return nil, common.ErrIllegalParams
 	}
-	adapter := db.NewKeyPrefixedDataAdapter(dbase, db.KPHistoryNode)
+	adapter := db.NewKeyPrefixedDataAdapter(dbase, dbPrefix)
 
 	var items []common.HashItem
 	items, err = proofs.ToItems()
@@ -294,7 +294,11 @@ func (h *HistoryTree) Rebase(dbase db.Database) (*HistoryTree, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewHistoryTree(dbase, root, false)
+	adapter, err := h.adapter.Rebase(dbase)
+	if err != nil {
+		return nil, err
+	}
+	return _newHistoryTree(adapter, root, false)
 }
 
 func (h *HistoryTree) Clone() *HistoryTree {
@@ -306,7 +310,8 @@ func (h *HistoryTree) Clone() *HistoryTree {
 
 	_ = h._commit()
 	root, _ := h._hashValue()
-	ht, _ := _newHistoryTree(h.adapter.Clone(), root, false)
+	adapter := h.adapter.Clone().(db.DatabasedAdapter)
+	ht, _ := _newHistoryTree(adapter, root, false)
 	return ht
 }
 

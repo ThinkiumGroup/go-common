@@ -73,7 +73,7 @@ type keyPrefixedDataAdapter struct {
 	keyPrefix []byte
 }
 
-func NewKeyPrefixedDataAdapter(database Database, keyPrefix []byte) DataAdapter {
+func NewKeyPrefixedDataAdapter(database Database, keyPrefix []byte) DatabasedAdapter {
 	ret := &keyPrefixedDataAdapter{database: database}
 	if len(keyPrefix) > 0 {
 		ret.keyPrefix = make([]byte, len(keyPrefix))
