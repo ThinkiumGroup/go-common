@@ -108,7 +108,7 @@ const (
 	ProofHeaderHdsRoot   ProofType = 0x26 // To proof header Headers root
 
 	ProofHeaderBase  ProofType = 0x30 // proof header type = ProofHeaderBase + models.BH* (Header column index)
-	ProofHeaderLimit           = ProofHeaderBase + 37
+	ProofHeaderLimit           = 0xa0 // [0x30, 0x80) including 80 items, which is the maximum number of properties of block
 )
 
 // var (
@@ -163,7 +163,7 @@ func (p ProofType) IsProofHeaderProperty() (headerIndex int, ok bool) {
 	case ProofHeaderHdsRoot:
 		return 20, true
 	default:
-		if p >= ProofHeaderBase && p < ProofExistence {
+		if p >= ProofHeaderBase && p < ProofHeaderLimit {
 			return int(p - ProofHeaderBase), true
 		}
 		return 0, false
