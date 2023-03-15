@@ -256,7 +256,7 @@ func (c *SmallCombinedTrie) saveRoot() error {
 
 // TODO optimization needed
 func (c *SmallCombinedTrie) loadRoot(rootHash []byte, nadapter db.DataAdapter, vadapter db.DataAdapter,
-	encode NodeValueEncode, decode NodeValueDecode, hasher NodeValueHasher, expander NodeValueExpander) error {
+	encode NodeValueEncode, decode NodeValueDecode, hasher NodeValueHasher) error {
 	if rootHash == nil {
 		return nil
 	}
@@ -291,7 +291,7 @@ func (c *SmallCombinedTrie) loadRoot(rootHash []byte, nadapter db.DataAdapter, v
 		if v != nil {
 			trieHash = *v
 		}
-		t := NewTrieWithValueFuncs(trieHash, nadapter, vadapter, encode, decode, hasher, expander)
+		t := NewTrieWithValueFuncs(trieHash, nadapter, vadapter, encode, decode, hasher)
 		s := string(key)
 		_, exist := c.valueMap[s]
 		if !exist {
@@ -304,14 +304,14 @@ func (c *SmallCombinedTrie) loadRoot(rootHash []byte, nadapter db.DataAdapter, v
 }
 
 func (c *SmallCombinedTrie) InitTrie(rootHash []byte, nadapter db.DataAdapter, vadapter db.DataAdapter,
-	encode NodeValueEncode, decode NodeValueDecode, hasher NodeValueHasher, expander NodeValueExpander) error {
+	encode NodeValueEncode, decode NodeValueDecode, hasher NodeValueHasher) error {
 	if rootHash == nil {
 		return common.ErrNil
 	}
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	return c.loadRoot(rootHash, nadapter, vadapter, encode, decode, hasher, expander)
+	return c.loadRoot(rootHash, nadapter, vadapter, encode, decode, hasher)
 }
 
 // func (c *SmallCombinedTrie) GetProof(key []byte) (value interface{}, proof common.ProofHash, ok bool) {

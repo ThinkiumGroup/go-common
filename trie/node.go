@@ -252,7 +252,7 @@ type (
 )
 
 type node struct {
-	prefix   []byte
+	prefix   []byte // key nibbles
 	children [childrenLength]*node
 	value    interface{}
 
@@ -264,10 +264,10 @@ type node struct {
 	valuestream []byte // cache of serialized value stream
 	generation  uint64 // created generation
 
-	valueEncode   NodeValueEncode   // Used to serialize the value in node to io.Writer as the value to save
-	valueDecode   NodeValueDecode   // Deserialize the data from database to node value in the trie
-	valueHasher   NodeValueHasher   // To calculate the hash of the node value, as part of the key when save to database
-	valueExpander NodeValueExpander // Used to return the serialization of the value corresponding to the specified valuehash
+	valueEncode NodeValueEncode // Used to serialize the value in node to io.Writer as the value to save
+	valueDecode NodeValueDecode // Deserialize the data from database to node value in the trie
+	valueHasher NodeValueHasher // To calculate the hash of the node value, as part of the key when save to database
+	// valueExpander NodeValueExpander // Used to return the serialization of the value corresponding to the specified valuehash
 }
 
 func DefaultValueHasher(value interface{}, _ []byte) ([]byte, error) {
@@ -278,16 +278,8 @@ func DefaultValueHasher(value interface{}, _ []byte) ([]byte, error) {
 	// return common.Hash256s(valuebytes)
 }
 
-func DefaultValueExpander(hashbytes []byte, adapter db.DataAdapter) ([]byte, error) {
-	valueBytes, err := adapter.Load(hashbytes)
-	if err != nil {
-		return nil, common.NewDvppError(fmt.Sprintf("load %x value data error", hashbytes), err)
-	}
-	return valueBytes, nil
-}
-
 func NewNodeWithFuncs(hash []byte, generation uint64, encode NodeValueEncode, decode NodeValueDecode,
-	hasher NodeValueHasher, expander NodeValueExpander) *node {
+	hasher NodeValueHasher) *node {
 	r := &node{
 		hash:        hash,
 		generation:  generation,
@@ -297,9 +289,6 @@ func NewNodeWithFuncs(hash []byte, generation uint64, encode NodeValueEncode, de
 	}
 	if hasher != nil {
 		r.valueHasher = hasher
-	}
-	if expander != nil {
-		r.valueExpander = expander
 	}
 	return r
 }
@@ -493,11 +482,12 @@ func (n *node) setChild(index int, child *node) (oldChild *node) {
 }
 
 func (n *node) expandValue(adapter db.DataAdapter) error {
-	var f NodeValueExpander = DefaultValueExpander
-	if n.valueExpander != nil {
-		f = n.valueExpander
-	}
-	valueBytes, err := f(n.valuehash, adapter)
+	// var f NodeValueExpander = DefaultValueExpander
+	// if n.valueExpander != nil {
+	// 	f = n.valueExpander
+	// }
+	// valueBytes, err := f(n.valuehash, adapter)
+	valueBytes, err := adapter.Load(n.valuehash)
 	if err != nil {
 		return err
 	}
@@ -684,7 +674,7 @@ func (n *node) Deserialization(r io.Reader) (shouldBeNil bool, err error) {
 				buf := make([]byte, common.HashLength)
 				l, err := io.ReadFull(r, buf)
 				if l == common.HashLength {
-					n.children[i] = NewNodeWithFuncs(buf, n.generation, n.valueEncode, n.valueDecode, n.valueHasher, n.valueExpander)
+					n.children[i] = NewNodeWithFuncs(buf, n.generation, n.valueEncode, n.valueDecode, n.valueHasher)
 					if err != nil {
 						log.Warnf("ignored an error occurs when Deserialize node: %v", err)
 					}
@@ -990,47 +980,3 @@ func (n *node) mergeTheLastChild(t *Trie) bool {
 	}
 	return false
 }
-
-//
-// // Returns whether it can be merged. If it is true, it can be merged and merged successfully.
-// // Otherwise, it returns false
-// func (n *node) mergeNode(index int, child *node) bool {
-// 	if index < 0 || index > 15 {
-// 		panic("illegal child index merged")
-// 	}
-// 	if child == nil {
-// 		panic("nil child merged")
-// 	}
-// 	// If the merged node is not expanded, it cannot be merged
-// 	if child.isCollapsed() || child.isValueCollapsed() {
-// 		return false
-// 	}
-// 	// At present, we do not consider the case of different key lengths
-// 	// if n.hasValue() && child.hasValue() {
-// 	// 	// If the node to be merged has value, it cannot be merged
-// 	// 	return false
-// 	// }
-//
-// 	n.prefix = append(n.prefix, byte(index))
-// 	if len(child.prefix) > 0 {
-// 		n.prefix = append(n.prefix, child.prefix...)
-// 	}
-// 	n.prefixChanged()
-//
-// 	changed := false
-// 	for i := 0; i < len(child.children); i++ {
-// 		if child.children[i] != nil {
-// 			n.children[i] = child.children[i]
-// 			changed = true
-// 		}
-// 	}
-// 	if changed {
-// 		n.childChanged()
-// 	}
-// 	if child.hasValue() {
-// 		n.value = child.value
-// 		n.valueChanged()
-// 	}
-// 	// log.Infof("%s -> %s", child, n)
-// 	return true
-// }

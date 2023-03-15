@@ -87,7 +87,6 @@ type (
 
 	Trie struct {
 		root         *node
-		originHash   []byte
 		nodeAdapter  db.DataAdapter
 		valueAdapter db.DataAdapter
 		valueCount   int
@@ -105,10 +104,9 @@ type (
 	}
 )
 
-func newTrie(rootHash []byte, root *node, nadapter db.DataAdapter, vadapter db.DataAdapter) *Trie {
+func newTrie(root *node, nadapter db.DataAdapter, vadapter db.DataAdapter) *Trie {
 	return &Trie{
 		root:         root,
-		originHash:   rootHash,
 		nodeAdapter:  nadapter,
 		valueAdapter: vadapter,
 		gen:          root.generation,
@@ -116,32 +114,32 @@ func newTrie(rootHash []byte, root *node, nadapter db.DataAdapter, vadapter db.D
 }
 
 func NewTrie(hash []byte, nadapter db.DataAdapter, vadapter db.DataAdapter, valueType reflect.Type,
-	hasher NodeValueHasher, expander NodeValueExpander) *Trie {
+	hasher NodeValueHasher) *Trie {
 	codec, err := rtl.NewStructCodec(valueType)
 	if err != nil {
 		panic(fmt.Errorf("new StructCodec error: %v", err))
 	}
-	return NewTrieWithValueFuncs(hash, nadapter, vadapter, codec.Encode, codec.Decode, hasher, expander)
+	return NewTrieWithValueFuncs(hash, nadapter, vadapter, codec.Encode, codec.Decode, hasher)
 }
 
 func NewTrieWithValueFuncs(hash []byte, nadapter db.DataAdapter, vadapter db.DataAdapter,
-	encode NodeValueEncode, decode NodeValueDecode, hasher NodeValueHasher, expander NodeValueExpander) *Trie {
-	root := NewNodeWithFuncs(hash, 1, encode, decode, hasher, expander)
-	return newTrie(hash, root, nadapter, vadapter)
+	encode NodeValueEncode, decode NodeValueDecode, hasher NodeValueHasher) *Trie {
+	root := NewNodeWithFuncs(hash, 1, encode, decode, hasher)
+	return newTrie(root, nadapter, vadapter)
 }
 
 func NewTrieWithValueCodec(hash []byte, nadapter db.DataAdapter, vadapter db.DataAdapter,
 	encode NodeValueEncode, decode NodeValueDecode) *Trie {
-	return NewTrieWithValueFuncs(hash, nadapter, vadapter, encode, decode, nil, nil)
+	return NewTrieWithValueFuncs(hash, nadapter, vadapter, encode, decode, nil)
 }
 
 func NewTrieWithValueType(hash []byte, nadapter db.DataAdapter, vadapter db.DataAdapter, valueType reflect.Type) *Trie {
-	return NewTrie(hash, nadapter, vadapter, valueType, nil, nil)
+	return NewTrie(hash, nadapter, vadapter, valueType, nil)
 }
 
 func (t *Trie) createNode(startNode *node, prefix []byte, childIndex int) *node {
 	ret := NewNodeWithFuncs(nil, startNode.generation, startNode.valueEncode, startNode.valueDecode,
-		startNode.valueHasher, startNode.valueExpander)
+		startNode.valueHasher)
 	if len(prefix) > 0 {
 		ret.setPrefix(prefix)
 	}
@@ -171,8 +169,7 @@ func (t *Trie) Clone() *Trie {
 	rootHash, _ := t.hashLocked()
 	return &Trie{
 		root: NewNodeWithFuncs(rootHash, t.gen, t.root.valueEncode,
-			t.root.valueDecode, t.root.valueHasher, t.root.valueExpander),
-		originHash:   rootHash,
+			t.root.valueDecode, t.root.valueHasher),
 		nodeAdapter:  t.nodeAdapter,
 		valueAdapter: t.valueAdapter,
 		gen:          t.gen,
@@ -196,8 +193,7 @@ func (t *Trie) Rebase(dbase db.Database) (*Trie, error) {
 	va, _ := db.RebaseAdapter(t.valueAdapter, dbase)
 	return &Trie{
 		root: NewNodeWithFuncs(root, 0, t.root.valueEncode,
-			t.root.valueDecode, t.root.valueHasher, t.root.valueExpander),
-		originHash:   root,
+			t.root.valueDecode, t.root.valueHasher),
 		nodeAdapter:  na,
 		valueAdapter: va,
 		gen:          0,
@@ -213,8 +209,7 @@ func (t *Trie) Inherit(root []byte) *Trie {
 	rootHash := common.CopyBytes(root)
 	return &Trie{
 		root: NewNodeWithFuncs(rootHash, 0, t.root.valueEncode,
-			t.root.valueDecode, t.root.valueHasher, t.root.valueExpander),
-		originHash:   rootHash,
+			t.root.valueDecode, t.root.valueHasher),
 		nodeAdapter:  t.nodeAdapter,
 		valueAdapter: t.valueAdapter,
 		gen:          0,
@@ -253,16 +248,11 @@ func (t *Trie) CommitAndHash() ([]byte, error) {
 	return root, nil
 }
 
-func (t *Trie) getLocked(key []byte) (interface{}, bool) {
-	prefix := keyToPrefix(key)
-	return t.get(t.root, prefix, 0, nil)
-}
-
 func (t *Trie) Get(key []byte) (interface{}, bool) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
-
-	return t.getLocked(key)
+	prefix := keyToPrefix(key)
+	return t.get(t.root, prefix, 0, nil)
 }
 
 // Take startNode as the root and prefixString[offset:] as the key to get the value in the node
@@ -606,16 +596,16 @@ func (t *Trie) expandNode(node *node) error {
 		// log.Warnf("[BUGFIX] remove prefix: %x, nodeHash set to empty", oldprefix)
 		node.hash = common.CopyBytes(common.EmptyNodeHashSlice)
 	}
-	_ = t.expandNodeValue(node)
+	err = t.expandNodeValue(node)
 
 	// t.lruCache.add(node,node)
 	// log.Debugf("expanded %s", node)
-	return nil
+	return err
 }
 
 func (t *Trie) expandNodeValue(node *node) error {
 	if node.isCollapsed() {
-		_ = t.expandNode(node)
+		return t.expandNode(node)
 	}
 	if !node.isValueCollapsed() || t.valueAdapter == nil {
 		return nil
@@ -908,7 +898,7 @@ func (t *Trie) GetExistenceProof(key []byte) (exist bool, proofs ProofChain, err
 
 func (t *Trie) unmarshalNewTrieLocked(r io.Reader, valueType reflect.Type, keyFunc func(interface{}) []byte) (*Trie, error) {
 	trie := NewTrieWithValueFuncs(nil, t.nodeAdapter, t.valueAdapter, t.root.valueEncode,
-		t.root.valueDecode, t.root.valueHasher, t.root.valueExpander)
+		t.root.valueDecode, t.root.valueHasher)
 
 	reader, ok := r.(rtl.ValueReader)
 	if !ok {
@@ -970,3 +960,13 @@ func (t *Trie) ReversedValueIterator() ValueIterator {
 	newt := t.Clone()
 	return newReversedValueIterator(newt)
 }
+
+//
+// func (t *Trie) Dump(to db.Database) error {
+// 	if t == nil || t.root == nil || t.root.isEmpty() {
+// 		return nil
+// 	}
+// 	if t.root.isDirty() {
+// 		return errors.New("trie need to be committed")
+// 	}
+// }
