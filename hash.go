@@ -986,7 +986,7 @@ func IsNilHash(bs []byte) bool {
 }
 
 func InvalidHash(bs []byte) bool {
-	return len(bs) == 0 || bytes.Equal(bs, EmptyHash[:]) ||
+	return len(bs) < HashLength || bytes.Equal(bs, EmptyHash[:]) ||
 		bytes.Equal(bs, NilHashSlice) || bytes.Equal(bs, EmptyNodeHashSlice)
 }
 

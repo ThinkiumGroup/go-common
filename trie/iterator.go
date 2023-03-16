@@ -27,7 +27,7 @@ type (
 		node  *node
 	}
 
-	// every tracenode point to next tracenode.node, the last one point to current node
+	// every tracenode point to next tracenode.node, the last one in stack point to stack.current
 	// tracenode[i].node.children[tracenode[i].index] == tracenode[i+1].node
 	traceStack struct {
 		stack   []*tracenode // stack of traversing
@@ -65,7 +65,7 @@ type (
 )
 
 // The children node object pointed to by the current value
-func (t tracenode) current(trie *Trie) *node {
+func (t tracenode) current(tr *Trie) *node {
 	if t.index < 0 || t.index >= childrenLength {
 		return nil
 	}
@@ -73,7 +73,7 @@ func (t tracenode) current(trie *Trie) *node {
 		return nil
 	}
 	if t.node.isCollapsed() {
-		_ = trie.expandNode(t.node)
+		_ = tr.expandNode(t.node)
 	}
 	return t.node.children[int(t.index)]
 }
