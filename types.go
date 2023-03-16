@@ -16,7 +16,6 @@ package common
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
@@ -211,32 +210,6 @@ func NewDvppError(msg string, embeded error) DvppError {
 
 func (e DvppError) Error() string {
 	return fmt.Sprintf("%s: %v", e.Message, e.Embedded)
-}
-
-type DvppFormatError struct {
-	format string
-	values []interface{}
-}
-
-func NewFormatError(format string, values ...interface{}) DvppFormatError {
-	return DvppFormatError{format: format, values: values}
-}
-
-func (e DvppFormatError) Error() string {
-	return fmt.Sprintf(e.format, e.values...)
-}
-
-func IntToBytes(n int) []byte {
-	b := make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, uint32(n))
-	return b
-}
-
-func BytesToUint32(b []byte) uint32 {
-	bytesBuffer := bytes.NewBuffer(b)
-	var tmp uint32
-	binary.Read(bytesBuffer, binary.BigEndian, &tmp)
-	return tmp
 }
 
 type LruMap struct {
