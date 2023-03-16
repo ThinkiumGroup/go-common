@@ -3,12 +3,14 @@ package trie
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"reflect"
 	"testing"
 
 	"github.com/ThinkiumGroup/go-common"
 	"github.com/ThinkiumGroup/go-common/db"
 	"github.com/ThinkiumGroup/go-common/hexutil"
+	"github.com/ThinkiumGroup/go-common/log"
 )
 
 type trieValue struct {
@@ -191,4 +193,121 @@ func TestAll(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	t.Logf("delete and merge check")
+}
+
+func TestTrie_Dump(t *testing.T) {
+	dbase := db.NewMemDB()
+	valueMap := make(map[string]*trieValue)
+
+	tr := _testCreateTrie(nil, dbase)
+	if err := _putAndCheckTrieValues(tr, valueMap, deleteValues); err != nil {
+		t.Fatalf("put values failed: %v", err)
+	}
+	root, err := tr.CommitAndHash()
+	if err != nil {
+		t.Fatalf("commit failed: %v", err)
+	}
+	tr = _testCreateTrie(root, dbase)
+	todb := db.NewMemDB()
+	if err := tr.Dump(todb); err != nil {
+		t.Fatalf("dump failed: %v", err)
+	}
+	tr = _testCreateTrie(root, todb)
+	if err = _checkTrieValues(tr, valueMap); err != nil {
+		t.Fatalf("dumped failed: %v", err)
+	}
+	t.Logf("dump check")
+}
+
+func TestHashHashTrie_Dump(t *testing.T) {
+	fromdb := db.NewMemDB()
+	todb := db.NewMemDB()
+	valueMap := make(map[common.Hash]common.Hash)
+	for i := 0; i < 10000; i++ {
+		k := common.BytesToHash(randomBytes(common.HashLength))
+		v := common.BytesToHash(randomBytes(common.HashLength))
+		valueMap[k] = v
+	}
+	newtrie := func(dbase db.Database, root []byte) *Trie {
+		na := db.NewKeyPrefixedDataAdapter(dbase, []byte("aa"))
+		va := db.NewTransparentDataAdapter()
+		encoder := func(o interface{}, w io.Writer) error {
+			h, ok := o.([]byte)
+			if !ok {
+				return nil
+			}
+			_, err := w.Write(h[:])
+			return err
+		}
+		decoder := func(r io.Reader) (o interface{}, err error) {
+			h := make([]byte, common.HashLength)
+			_, err = io.ReadFull(r, h)
+			// _, err = r.Read(h)
+			if err != nil {
+				return nil, err
+			}
+			return h, nil
+		}
+		// Only hash is reserved. The data of CashCheck is provided by the client, so the value itself is the hash value
+		hasher := func(value interface{}, valueBytes []byte) (hashBytes []byte, err error) {
+			if len(valueBytes) != common.HashLength {
+				log.Errorf("%x length != HashLength", valueBytes)
+				return nil, common.ErrLength
+			}
+			return valueBytes, nil
+		}
+		return NewTrieWithValueFuncs(root, na, va, encoder, decoder, hasher)
+	}
+	checkValue := func(tr *Trie, values map[common.Hash]common.Hash) error {
+		if len(values) == 0 && tr == nil {
+			return nil
+		}
+		m := make(map[common.Hash]common.Hash)
+		for k, v := range values {
+			m[k] = v
+		}
+		it := tr.ValueIterator()
+		for it.Next() {
+			k, v := it.Current()
+			value := v.([]byte)
+			key := common.BytesToHash(k)
+			vv, exist := m[key]
+			if !exist {
+				return fmt.Errorf("%x:%x in Trie but not in map", key[:], value)
+			}
+			if !bytes.Equal(value, vv[:]) {
+				return fmt.Errorf("%x:%x in Trie not equals with in Map:%x", key[:], value, vv[:])
+			}
+			delete(m, key)
+		}
+		if len(m) > 0 {
+			return fmt.Errorf("%v left in Map", m)
+		}
+		return nil
+	}
+
+	tr := newtrie(fromdb, nil)
+	for k, v := range valueMap {
+		tr.Put(common.CopyBytes(k[:]), common.CopyBytes(v[:]))
+	}
+	if err := checkValue(tr, valueMap); err != nil {
+		t.Fatalf("put values failed: %v", err)
+	} else {
+		t.Logf("put check with %d values", len(valueMap))
+	}
+	root, err := tr.CommitAndHash()
+	if err != nil {
+		t.Fatalf("commit failed: %v", err)
+	}
+	tr = newtrie(fromdb, root)
+	if err := tr.Dump(todb); err != nil {
+		t.Fatalf("dump failed: %v", err)
+	}
+	tr = newtrie(todb, root)
+	if err = checkValue(tr, valueMap); err != nil {
+		t.Fatalf("dumped failed: %v", err)
+	} else {
+		t.Logf("dump check with %d values", len(valueMap))
+	}
+	t.Logf("hash-hash trie dump check")
 }

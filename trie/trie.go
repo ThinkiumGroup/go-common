@@ -16,6 +16,7 @@ package trie
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -961,12 +962,69 @@ func (t *Trie) ReversedValueIterator() ValueIterator {
 	return newReversedValueIterator(newt)
 }
 
-//
-// func (t *Trie) Dump(to db.Database) error {
-// 	if t == nil || t.root == nil || t.root.isEmpty() {
-// 		return nil
-// 	}
-// 	if t.root.isDirty() {
-// 		return errors.New("trie need to be committed")
-// 	}
-// }
+func (t *Trie) Dump(to db.Database) error {
+	if t == nil || t.root == nil || t.root.isEmpty() {
+		return nil
+	}
+	if t.root.isDirty() {
+		return errors.New("trie is dirty")
+	}
+	var err error
+	var na, va db.DatabasedAdapter
+	if tna, ok := t.nodeAdapter.(db.DatabasedAdapter); ok {
+		na, err = tna.Rebase(to)
+		if err != nil {
+			return fmt.Errorf("rebase node adapter failed: %v", err)
+		}
+	} else {
+		return errors.New("invalid node adapter")
+	}
+	if tva, ok := t.valueAdapter.(db.DatabasedAdapter); ok {
+		va, err = tva.Rebase(to)
+		if err != nil {
+			return fmt.Errorf("rebase value adapter failed: %v", err)
+		}
+	}
+	rootHash := t.root.hash
+	it := newNodeIterator(t)
+	for {
+		n := it.Next(nil)
+		if n == nil {
+			break
+		}
+		if common.InvalidHash(n.hash) {
+			continue
+		}
+
+		// dump node
+		nodebytes, err := t.nodeAdapter.Load(n.hash)
+		if err != nil {
+			return fmt.Errorf("load node bytes at:%x of root:%x failed: %v", n.hash, rootHash, err)
+		}
+		if len(nodebytes) > 0 {
+			if err = na.Save(n.hash, nodebytes); err != nil {
+				return fmt.Errorf("dump node bytes at:%x of root:%x failed: %v", n.hash, rootHash, err)
+			}
+		}
+
+		if err := t.expandNode(n); err != nil {
+			return fmt.Errorf("expand node at:%x of root:%x failed: %v", n.hash, rootHash, err)
+		}
+
+		// dump value
+		if va != nil && len(n.valuehash) >= common.HashLength {
+			valuebytes, err := t.valueAdapter.Load(n.valuehash)
+			if err != nil {
+				return fmt.Errorf("load node value bytes at:%x of root:%x - %x failed: %v",
+					n.valuehash, rootHash, n.hash, err)
+			}
+			if len(valuebytes) > 0 {
+				if err = va.Save(n.valuehash, valuebytes); err != nil {
+					return fmt.Errorf("dump node value bytes at:%x of root:%x - %x failed: %v",
+						n.valuehash, rootHash, n.hash, err)
+				}
+			}
+		}
+	}
+	return nil
+}
