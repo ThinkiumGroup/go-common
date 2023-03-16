@@ -112,7 +112,7 @@ func TestHistoryTree(t *testing.T) {
 	defer func() {
 		_ = dbase.Close()
 	}()
-	htree, err := NewHistoryTree(dbase, nil, true)
+	htree, err := NewHistoryTree(dbase, []byte("al"), nil, true)
 	if err != nil {
 		t.Fatalf("new tree error: %v", err)
 	}
@@ -211,7 +211,7 @@ func TestHistoryTree(t *testing.T) {
 	}
 
 	fmt.Printf("===========RestoreTreeFromProofs(db,10,%x,%v)===========\n", value, proofs)
-	htree2, err := RestoreTreeFromProofs(dbase, 10, value, proofs)
+	htree2, err := RestoreTreeFromProofs(dbase, []byte("al"), 10, value, proofs)
 	if err != nil {
 		t.Errorf("restore tree from proofs error: %v", err)
 		return
@@ -308,7 +308,7 @@ func TestHistoryTree_Append(t *testing.T) {
 	defer func() {
 		_ = dbase.Close()
 	}()
-	htree, err := NewHistoryTree(dbase, nil, true)
+	htree, err := NewHistoryTree(dbase, []byte("al"), nil, true)
 	if err != nil {
 		t.Errorf("new tree error: %v", err)
 		return
@@ -379,7 +379,7 @@ func TestHistoryTree_Append(t *testing.T) {
 		t.Logf("Proof(%x) == %v check", v, root1)
 	}
 
-	htree2, err := RestoreTreeFromProofs(dbase, p1, value, proofs)
+	htree2, err := RestoreTreeFromProofs(dbase, []byte("al"), p1, value, proofs)
 	if err != nil {
 		t.Errorf("restore tree from proofs error: %v", err)
 		return
@@ -442,7 +442,7 @@ func TestHistoryRestore(t *testing.T) {
 	defer func() {
 		_ = dbase.Close()
 	}()
-	htree, err := NewHistoryTree(dbase, nil, true)
+	htree, err := NewHistoryTree(dbase, []byte("al"), nil, true)
 	if err != nil {
 		t.Errorf("new tree error: %v", err)
 		return
@@ -482,7 +482,7 @@ func TestHistoryRestore(t *testing.T) {
 		t.Logf("GetProof(%d) %x, %v, %t, root:%x", p, value, proofs, ok, hash0x0f1)
 	}
 
-	htree2, _ := NewHistoryTree(dbase, hash0x0f, true)
+	htree2, _ := NewHistoryTree(dbase, []byte("al"), hash0x0f, true)
 	value, proofs, ok = htree2.GetProof(p)
 	if !ok {
 		t.Errorf("GetProof(%d) failed: %x, %v, %t", p, value, proofs, ok)
@@ -514,7 +514,7 @@ func TestHistoryTree_MergeProof(t *testing.T) {
 		_ = dbase2.Close()
 	}()
 
-	htree1, err := NewHistoryTree(dbase1, nil, true)
+	htree1, err := NewHistoryTree(dbase1, []byte("al"), nil, true)
 	if err != nil {
 		t.Fatalf("new tree error: %v", err)
 	}
@@ -547,7 +547,7 @@ func TestHistoryTree_MergeProof(t *testing.T) {
 		t.Fatalf("get proof (%d) failed", last)
 	}
 
-	htree2, err := RestoreTreeFromProofs(dbase2, last, valuel, proofsl)
+	htree2, err := RestoreTreeFromProofs(dbase2, []byte("al"), last, valuel, proofsl)
 	if err != nil {
 		t.Fatalf("restore tree from proofs error: %v", err)
 	} else {
@@ -700,7 +700,7 @@ func TestHistoryTree_Chop(t *testing.T) {
 	dbase := db.NewMemDB()
 	rootMap := make(map[uint64][]byte)
 	valMap := make(map[uint64][]byte)
-	tree, err := NewHistoryTree(dbase, nil, false)
+	tree, err := NewHistoryTree(dbase, []byte("al"), nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
