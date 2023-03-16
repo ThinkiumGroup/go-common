@@ -246,9 +246,6 @@ type (
 	// NodeValueHasher hashes the input parameter and return the hashed value
 	// returnd value length must equals common.HashLength
 	NodeValueHasher func(value interface{}, valueBytes []byte) (hashBytes []byte, err error)
-
-	// NodeValueExpander expands node value
-	NodeValueExpander func(hashBytes []byte, adapter db.DataAdapter) (valueBytes []byte, err error)
 )
 
 type node struct {
@@ -267,15 +264,10 @@ type node struct {
 	valueEncode NodeValueEncode // Used to serialize the value in node to io.Writer as the value to save
 	valueDecode NodeValueDecode // Deserialize the data from database to node value in the trie
 	valueHasher NodeValueHasher // To calculate the hash of the node value, as part of the key when save to database
-	// valueExpander NodeValueExpander // Used to return the serialization of the value corresponding to the specified valuehash
 }
 
 func DefaultValueHasher(value interface{}, _ []byte) ([]byte, error) {
-	// if len(valuebytes) < common.HashLength {
-	// 	return valuebytes, nil
-	// }
 	return common.HashObject(value)
-	// return common.Hash256s(valuebytes)
 }
 
 func NewNodeWithFuncs(hash []byte, generation uint64, encode NodeValueEncode, decode NodeValueDecode,
@@ -487,6 +479,9 @@ func (n *node) expandValue(adapter db.DataAdapter) error {
 	// 	f = n.valueExpander
 	// }
 	// valueBytes, err := f(n.valuehash, adapter)
+	if len(n.valuehash) < common.HashLength {
+		return nil
+	}
 	valueBytes, err := adapter.Load(n.valuehash)
 	if err != nil {
 		return err

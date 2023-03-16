@@ -70,7 +70,7 @@ func randomBytes(length int) nodevalue {
 }
 
 func createNode(gen uint64, withValue bool) *node {
-	n := NewNodeWithFuncs(nil, gen, valueEncode, valueDecode, nil, nil)
+	n := NewNodeWithFuncs(nil, gen, valueEncode, valueDecode, nil)
 	if withValue {
 		n.value = randomBytes(100)
 	}
@@ -248,7 +248,7 @@ func TestHash(t *testing.T) {
 }
 
 func TestNodeOps(t *testing.T) {
-	n := NewNodeWithFuncs(nil, 1, nil, nil, nil, nil)
+	n := NewNodeWithFuncs(nil, 1, nil, nil, nil)
 	n.setPrefix([]byte("1234567890"))
 	t.Logf("%v", n)
 	n.chopPrefixHead(1)
