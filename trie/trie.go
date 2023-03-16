@@ -962,7 +962,7 @@ func (t *Trie) ReversedValueIterator() ValueIterator {
 	return newReversedValueIterator(newt)
 }
 
-func (t *Trie) Dump(to db.Database) error {
+func (t *Trie) Dump(to db.Database, valueCallback func(key, value []byte)) error {
 	if t == nil || t.root == nil || t.root.isEmpty() {
 		return nil
 	}
@@ -1012,17 +1012,32 @@ func (t *Trie) Dump(to db.Database) error {
 		}
 
 		// dump value
-		if va != nil && len(n.valuehash) >= common.HashLength {
+		if len(n.valuehash) >= common.HashLength && (va != nil || valueCallback != nil) {
 			valuebytes, err := t.valueAdapter.Load(n.valuehash)
 			if err != nil {
 				return fmt.Errorf("load node value bytes at:%x of root:%x - %x failed: %v",
 					n.valuehash, rootHash, n.hash, err)
 			}
-			if len(valuebytes) > 0 {
+			if len(valuebytes) > 0 && va != nil {
 				if err = va.Save(n.valuehash, valuebytes); err != nil {
 					return fmt.Errorf("dump node value bytes at:%x of root:%x - %x failed: %v",
 						n.valuehash, rootHash, n.hash, err)
 				}
+			}
+			if valueCallback != nil {
+				// value bytes could be nil
+				prefix := it.CurrentPrefix()
+				if len(n.prefix) > 0 {
+					prefix = append(prefix, n.prefix...)
+				}
+				if len(prefix) == 0 {
+					valueCallback(nil, valuebytes)
+				}
+				if len(prefix)%2 != 0 {
+					return fmt.Errorf("odd length prefix(%s) found a (%d)bytes value",
+						string(prefixToHexstring(prefix)), len(valuebytes))
+				}
+				valueCallback(prefixToKeystring(prefix), valuebytes)
 			}
 		}
 	}

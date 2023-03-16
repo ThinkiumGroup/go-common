@@ -11,6 +11,7 @@ import (
 	"github.com/ThinkiumGroup/go-common/db"
 	"github.com/ThinkiumGroup/go-common/hexutil"
 	"github.com/ThinkiumGroup/go-common/log"
+	"github.com/stephenfire/go-rtl"
 )
 
 type trieValue struct {
@@ -209,7 +210,15 @@ func TestTrie_Dump(t *testing.T) {
 	}
 	tr = _testCreateTrie(root, dbase)
 	todb := db.NewMemDB()
-	if err := tr.Dump(todb); err != nil {
+	if err := tr.Dump(todb, func(key, value []byte) {
+		keystr := hexutil.Encode(key)
+		tv := new(trieValue)
+		_ = rtl.Unmarshal(value, tv)
+		v, ok := valueMap[keystr]
+		if !ok || v == nil || v.Equal(tv) == false {
+			t.Fatalf("value not match, %s:%v %v", key, tv, v)
+		}
+	}); err != nil {
 		t.Fatalf("dump failed: %v", err)
 	}
 	tr = _testCreateTrie(root, todb)
@@ -300,7 +309,7 @@ func TestHashHashTrie_Dump(t *testing.T) {
 		t.Fatalf("commit failed: %v", err)
 	}
 	tr = newtrie(fromdb, root)
-	if err := tr.Dump(todb); err != nil {
+	if err := tr.Dump(todb, nil); err != nil {
 		t.Fatalf("dump failed: %v", err)
 	}
 	tr = newtrie(todb, root)
