@@ -324,6 +324,13 @@ func (r *RevertableTrie) RevertTo(checkPoint int, root []byte) error {
 	return nil
 }
 
+func (r *RevertableTrie) Dump(to db.Database, valueCallback func(key, value []byte)) error {
+	if r == nil {
+		return nil
+	}
+	return r.Origin.Dump(to, valueCallback)
+}
+
 type RevertableHistoryTree struct {
 	Origin *HistoryTree
 	Live   *HistoryTree
