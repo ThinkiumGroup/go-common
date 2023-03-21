@@ -759,6 +759,9 @@ func (c ProofChain) ExistenceHash() (rootHash []byte, err error) {
 
 // Calculate the hash value from toBeProof through the whole proof chain
 func (c ProofChain) Proof(toBeProof common.Hash) ([]byte, error) {
+	if len(c) == 0 {
+		return toBeProof[:], nil
+	}
 	h := toBeProof[:]
 	callback := func(val []byte, order bool) error {
 		var errr error

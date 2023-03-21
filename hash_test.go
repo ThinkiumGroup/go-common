@@ -480,3 +480,19 @@ func TestRepeatedMerkleProofs(t *testing.T) {
 		}
 	}
 }
+
+func TestValuesToHashs(t *testing.T) {
+	var slices [][]byte
+	slices = append(slices, nil)
+	slices = append(slices, RandomBytes(32))
+	hashes, err := ValuesToHashs(slices)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%x", hashes)
+	nilhash, _ := HashObject([]byte(nil))
+	t.Logf("nilslice hash: %x", nilhash)
+	h, _ := Hash256s([]byte{0x80})
+	t.Logf("rtl.ZeroValue hash: %x", h)
+	t.Logf("nilhash:%x emptyhash:%x", Hash256NoError([]byte(nil)), Hash256NoError([]byte("")))
+}

@@ -740,6 +740,28 @@ func HashRipemd160(data []byte) []byte {
 	return md.Sum(data)
 }
 
+func SlicesToHashs(bss [][]byte) [][]byte {
+	var hashList [][]byte
+	for i := 0; i < len(bss); i++ {
+		if len(bss[i]) == 0 {
+			hashList = append(hashList, CopyBytes(NilHashSlice))
+		} else {
+			hashList = append(hashList, Hash256NoError(bss[i]))
+		}
+	}
+	return hashList
+}
+
+func SlicesMerkleHash(values [][]byte, toBeProof int, proofs *MerkleProofs) (rootHash []byte, err error) {
+	hashList := SlicesToHashs(values)
+	return MerkleHash(hashList, toBeProof, proofs)
+}
+
+func SlicesMerkleHashComplete(values [][]byte, toBeProof int, proofs *MerkleProofs) (rootHash []byte, err error) {
+	hashList := SlicesToHashs(values)
+	return MerkleHashComplete(hashList, toBeProof, proofs)
+}
+
 func ValuesToHashs(values interface{}) ([][]byte, error) {
 	val := reflect.ValueOf(values)
 	typ := val.Type()
@@ -891,18 +913,9 @@ func MerkleHashComplete(hashList [][]byte, toBeProof int, proofs *MerkleProofs) 
 }
 
 func ValuesMerkleHash(values interface{}, toBeProof int, proofs *MerkleProofs) (rootHash []byte, err error) {
-	val := reflect.ValueOf(values)
-	typ := val.Type()
-	if typ.Kind() != reflect.Slice {
-		return nil, ErrUnsupported
-	}
-	var hashList [][]byte
-	for i := 0; i < val.Len(); i++ {
-		h, err := HashObject(val.Index(i).Interface())
-		if err != nil {
-			return nil, err
-		}
-		hashList = append(hashList, h)
+	hashList, err := ValuesToHashs(values)
+	if err != nil {
+		return nil, err
 	}
 	return MerkleHash(hashList, toBeProof, proofs)
 }

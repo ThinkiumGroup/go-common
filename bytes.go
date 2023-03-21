@@ -307,6 +307,21 @@ func CopyBytesSlice(in [][]byte) [][]byte {
 	return out
 }
 
+func BytesSliceEqual(a, b [][]byte) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if len(a) != len(b) {
+		return false
+	}
+	for i := 0; i < len(a); i++ {
+		if bytes.Equal(a[i], b[i]) == false {
+			return false
+		}
+	}
+	return true
+}
+
 // let b0.bit(0~7) and b1.bit(0~7) be bit(0~15), and returns bit(shifts, shifts+length)
 // 0 <= shifts <= 7; 1<= length <= 8 default:8
 // ShiftBytes(0xf0, 0xf, 3, 7) would be 0x7e
