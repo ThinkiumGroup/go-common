@@ -668,7 +668,7 @@ func (p *MerkleProofs) InfoString(level IndentLevel) string {
 	base := level.IndentString()
 	buf.WriteString("MerkleProofs{")
 
-	buf.WriteString(fmt.Sprintf("\n%s\tPath: 0x%x", base, p.Paths.Bytes()))
+	buf.WriteString(fmt.Sprintf("\n%s\tPath: 0x%x (%s)", base, p.Paths.Bytes(), p.Paths.String()))
 	_ = p._hashsIterate(func(h Hash, index, startFullIndex int, times int) error {
 		if times > 1 {
 			orders := big.NewInt(0)
