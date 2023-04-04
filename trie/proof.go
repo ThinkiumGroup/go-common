@@ -186,8 +186,8 @@ func (p ProofType) String() string {
 	if p.IsProofMerkleOnly() {
 		return "M"
 	}
-	if _, ok := p.IsProofHeaderProperty(); ok {
-		return fmt.Sprintf("H%d", p)
+	if i, ok := p.IsProofHeaderProperty(); ok {
+		return fmt.Sprintf("H%d(%d)", p, i)
 	}
 	return "NA"
 }
@@ -199,6 +199,8 @@ func (p ProofType) String() string {
 //    In this case, ValueHash is the special prefix of different fields, and the hash value of the
 //    field sequence number can be used to prove that this field is being proved, and ChildProofs
 //    is the proof to BlockHeader.Hash
+// 4. When PType is ProofHdsSummary, ValueHash is Hash(4bytes(ChainID)+8bytes(Height)), and empty
+//    Header, nil ChildProofs
 type NodeProof struct {
 	PType       ProofType            `json:"type"`   // Limit the content that this node can prove, which is used to judge in proving step.
 	Header      NodeHeader           `json:"header"` // Description of the current node, including: whether there is prefix, what is prefix, which child node has data, and whether there is value
@@ -432,82 +434,6 @@ func (n *NodeProof) Proof(toBeProof common.Hash) ([]byte, error) {
 		return nil, err
 	}
 	return result, nil
-	// if n.PType.IsProofMerkleOnly() {
-	// 	// standard proof of a merkle tree
-	// 	return n.ChildProofs.Proof(toBeProof)
-	// }
-	//
-	// var left []byte
-	// var err error
-	// if n.PType.IsProofChild() {
-	// 	// proof child node
-	// 	headerHash, err := n.Header.HashValue()
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	valueHash := common.NilHashSlice
-	// 	if n.ValueHash != nil {
-	// 		valueHash = n.ValueHash[:]
-	// 	}
-	// 	left = common.HashPair(headerHash, valueHash)
-	// 	right := toBeProof[:]
-	// 	if n.ChildProofs != nil {
-	// 		right, err = n.ChildProofs.Proof(toBeProof)
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 	}
-	// 	left = common.HashPair(left, right)
-	// } else if n.PType.IsProofValue() {
-	// 	// proof value of the node
-	// 	headerHash, err := n.Header.HashValue()
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	left = common.HashPair(headerHash, toBeProof[:])
-	// 	if n.ChildProofs != nil {
-	// 		if len(n.ChildProofs.Hashs) == 0 {
-	// 			// if there is no value, which can be explained by Header, it will not perform hashing
-	// 		} else if len(n.ChildProofs.Hashs) == 1 {
-	// 			left = common.HashPair(left, n.ChildProofs.Hashs[0][:])
-	// 		} else {
-	// 			return nil, errors.New("only 1 hash most promitted in ChildProofs when proof the value of the node")
-	// 		}
-	// 	}
-	// } else if n.PType.IsProofHdsSummary() {
-	// 	// It has the same structure and algorithm as block proof
-	// 	if n.ValueHash == nil {
-	// 		return nil, ErrMissingValue
-	// 	}
-	// 	if n.ChildProofs == nil || len(n.ChildProofs.Hashs) == 0 {
-	// 		return nil, ErrMissingChild
-	// 	}
-	// 	left = common.HashPair(n.ValueHash[:], toBeProof[:])
-	// 	left, err = n.ChildProofs.Proof(common.BytesToHash(left))
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// } else if _, ok := n.PType.IsProofHeaderProperty(); ok {
-	// 	// To proof fields in BlockHeader
-	// 	if n.ValueHash == nil {
-	// 		return nil, ErrMissingValue
-	// 	}
-	// 	if n.ChildProofs == nil || len(n.ChildProofs.Hashs) == 0 {
-	// 		return nil, ErrMissingChild
-	// 	}
-	// 	left = common.HashPair(n.ValueHash[:], toBeProof[:])
-	// 	left, err = n.ChildProofs.Proof(common.BytesToHash(left))
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// } else {
-	// 	// n.PType.IsProofExsitence()
-	// 	// To prove the existence, the current node is used to prove the existence and cannot
-	// 	// be used to prove the value
-	// 	return nil, ErrMismatchProof
-	// }
-	//
-	// return left, nil
 }
 
 // Compare the nibbles in keyprefix with the prefix of the current node and the index of the
@@ -646,6 +572,21 @@ func (n *NodeProof) IsHeaderOf(chainId common.ChainID, height common.Height) boo
 	// 	return false
 	// }
 	h := common.HeaderIndexHash(common.ToHeaderPosHashBuffer(chainId, height), byte(i))
+	if bytes.Equal(h, n.ValueHash[:]) {
+		return true
+	}
+	return false
+}
+
+func (n *NodeProof) IsHeaderPropertyOf(chainId common.ChainID, height common.Height, headerIndex int) bool {
+	if n == nil || n.ValueHash == nil {
+		return false
+	}
+	if idx, ok := n.PType.IsProofHeaderProperty(); !ok || idx != headerIndex {
+		return false
+	}
+	buf := common.ToHeaderPosHashBuffer(chainId, height)
+	h := common.Hash256NoError(buf[:12])
 	if bytes.Equal(h, n.ValueHash[:]) {
 		return true
 	}
