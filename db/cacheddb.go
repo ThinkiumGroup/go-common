@@ -49,6 +49,7 @@ func (b *cachedBatch) Size() int {
 }
 
 type cachedDB struct {
+	path   string
 	baseDB Database
 	cache  *lru.Cache
 	lock   sync.RWMutex
@@ -66,20 +67,12 @@ func NewCachedDBWithPath(path string, cacheSize int) (Database, error) {
 	if cacheSize <= 0 {
 		return db, nil
 	}
-	cdb, err := NewCachedDB(db, cacheSize)
-	if err != nil {
-		db.Close()
-		return nil, err
-	}
-	return cdb, nil
-}
-
-func NewCachedDB(db Database, cacheSize int) (*cachedDB, error) {
 	c, e := lru.New(cacheSize)
 	if e != nil {
 		return nil, e
 	}
 	return &cachedDB{
+		path:   path,
 		baseDB: db,
 		cache:  c,
 	}, nil
@@ -88,7 +81,7 @@ func NewCachedDB(db Database, cacheSize int) (*cachedDB, error) {
 func (d *cachedDB) Put(key, value []byte) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	atomic.AddUint64(&(d.writecount), 1)
+	d.writecount++
 	if err := d.baseDB.Put(key, value); err != nil {
 		return err
 	}
@@ -129,21 +122,24 @@ func (d *cachedDB) Get(key []byte) ([]byte, error) {
 func (d *cachedDB) Delete(key []byte) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	atomic.AddUint64(&(d.writecount), 1)
+	d.writecount++
 	d.cache.Remove(string(key))
 	return d.baseDB.Delete(key)
 }
 
 func (d *cachedDB) NewBatch() Batch {
+	d.lock.Lock()
+	defer d.lock.Unlock()
 	return &cachedBatch{
 		batch: d.baseDB.NewBatch(),
 		keys:  make(map[string]struct{}),
 	}
 }
+
 func (d *cachedDB) Batch(batch Batch) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	atomic.AddUint64(&(d.writecount), 1)
+	d.writecount++
 	if cb, ok := batch.(*cachedBatch); ok {
 		for k, _ := range cb.keys {
 			d.cache.Remove(k)
@@ -152,6 +148,26 @@ func (d *cachedDB) Batch(batch Batch) error {
 	}
 	return d.baseDB.Batch(batch)
 }
+
 func (d *cachedDB) Close() error {
+	d.lock.Lock()
+	defer d.lock.Unlock()
 	return d.baseDB.Close()
+}
+
+func (d *cachedDB) Replace(newpath string, newdb Database) (oldpath string, olddb Database) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	oldpath = d.path
+	olddb = d.baseDB
+	d.path = newpath
+	d.baseDB = newdb
+	d.writecount = 0
+	d.hitcount = 0
+	d.misscount = 0
+	return
+}
+
+type Replaceable interface {
+	Replace(newpath string, newdb Database) (oldpath string, olddb Database)
 }
