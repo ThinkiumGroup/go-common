@@ -433,42 +433,6 @@ func (h *HistoryTree) Get(key uint64) (value []byte, exist bool) {
 	return common.CopyBytes(value), exist
 }
 
-// func (h *HistoryTree) GetProof(key uint64) (value []byte, proofs ProofChain, ok bool) {
-// 	if h == nil {
-// 		return nil, nil, false
-// 	}
-// 	h.lock.Lock()
-// 	defer h.lock.Unlock()
-//
-// 	if h.root == nil {
-// 		return nil, nil, false
-// 	}
-// 	prefix := heightToPrefix(key)
-// 	tracers := make([]nodeTracer, 1)
-// 	tracers[0] = nodeTracer{pos: 0xff, nodeInPos: h.root}
-// 	_, index, value, exist, err := locateNode(h.root, prefix, h.adapter, &tracers)
-// 	if err != nil {
-// 		log.Errorf("HistoryTree.GetProof error %v", err)
-// 		return nil, nil, false
-// 	}
-// 	if !exist || index < 0 {
-// 		return nil, nil, false
-// 	}
-//
-// 	for i := len(tracers) - 1; i >= 0; i-- {
-// 		node := tracers[i].nodeInPos
-// 		_, _, proof, err := node.makeProof(index)
-// 		if err != nil {
-// 			log.Errorf("HistoryTree.GetProof error: %v", err)
-// 			return nil, nil, false
-// 		}
-// 		proofs = append(proofs, NewMerkleOnlyProof(ProofMerkleOnly, proof))
-// 		index = int(tracers[i].pos)
-// 	}
-//
-// 	return common.CopyBytes(value), proofs, true
-// }
-
 func (h *HistoryTree) GetProof(key uint64) (value []byte, proofs ProofChain, ok bool) {
 	if h == nil {
 		return nil, nil, false
@@ -636,26 +600,6 @@ func NewTreeNode() *TreeNode {
 	return &TreeNode{
 		Branchs: make(map[string][]byte),
 	}
-}
-
-// When value is a legal hash value, a new leaf node is generated. Otherwise, when the
-// child is not nil, a new non leaf node is generated.
-func newNodeByProof(adapter db.DataAdapter, index int, value []byte, child *TreeNode,
-	proof *common.MerkleProofs) (rn *TreeNode, err error) {
-	if index < 0 || index >= childrenLength ||
-		(len(value) != common.HashLength && child == nil) ||
-		proof == nil || proof.Len() != ValueKeyLength {
-		return nil, common.ErrIllegalParams
-	}
-
-	node := &TreeNode{
-		isLeaf:  len(value) == common.HashLength, // If value is a legal hash value, it is a leaf node
-		Branchs: make(map[string][]byte),
-	}
-	if err := node.mergeProof(adapter, index, value, child, proof); err != nil {
-		return nil, err
-	}
-	return node, nil
 }
 
 func _newNodeByHashItems(adapter db.DataAdapter, index int, value []byte, child *TreeNode,
@@ -1574,102 +1518,6 @@ func (n *TreeNode) appendToProof(proof *common.MerkleProofs, index int) (rootHas
 		rootHash = common.HashPair(left, right)
 	}
 	return
-}
-
-// generate merkle proof by specified index
-// rootHash: root hash of current node
-// toBeProof: hash of prooved position (specified by index)
-// proof: merkle proof
-func (n *TreeNode) makeProof(index int) (rootHash []byte, toBeProof []byte, proof *common.MerkleProofs, err error) {
-	proof = common.NewMerkleProofs()
-	rootHash, toBeProof, err = n.appendToProof(proof, index)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	return
-	// if n == nil {
-	// 	return nil, nil, nil, common.ErrNil
-	// }
-	// if index < 0 || index >= childrenLength {
-	// 	return nil, nil, nil, common.ErrIllegalParams
-	// }
-	// if (n.isLeaf && n.Leafs[index] == nil) || (n.isLeaf == false && n.Children[index] == nil) {
-	// 	// The proved position must have a value, because the whole tree is filled from left to
-	// 	// right, and the hash is also calculated from left to right. Nilhash can be filled only
-	// 	// in the last hash of each layer. Therefore, the leaves of nil value are not directly
-	// 	// involved in the calculation of roothash
-	// 	return nil, nil, nil, common.ErrNil
-	// }
-	//
-	// toBeProof = common.CopyBytes(n.Leafs[index])
-	// proof = common.NewMerkleProofs()
-	//
-	// var left, right []byte
-	// // layer1
-	// if index%2 == 0 {
-	// 	left, err = n.LeafHash(index)
-	// 	if err != nil {
-	// 		return nil, nil, nil, err
-	// 	}
-	// 	right, err = n.LeafHash(index + 1)
-	// 	if err != nil {
-	// 		return nil, nil, nil, err
-	// 	}
-	// 	if right == nil {
-	// 		right = common.NilHashSlice
-	// 	}
-	// 	proof.Append(common.BytesToHash(right), false)
-	// } else {
-	// 	left, err = n.LeafHash(index - 1)
-	// 	if err != nil {
-	// 		return nil, nil, nil, err
-	// 	}
-	// 	if left == nil {
-	// 		// Because it is a complete binary tree from left to right, the left side of non-nil value cannot be nil
-	// 		return nil, nil, nil, ErrMissingValue
-	// 	}
-	// 	right, err = n.LeafHash(index)
-	// 	if err != nil {
-	// 		return nil, nil, nil, err
-	// 	}
-	// 	proof.Append(common.BytesToHash(left), true)
-	// }
-	// rootHash = common.HashPair(left, right)
-	//
-	// // Layer 2-4, calculate the hash layer by layer from bottom to top, and record the proof path
-	// // convert index to 4-byte binary
-	// bits, err := ToBinary(byte(index), ValueKeyLength)
-	// for i := 2; i >= 0; i-- {
-	// 	if bits[i] == 0x0 {
-	// 		left = rootHash
-	// 		rightPrefix := make([]byte, i+1)
-	// 		copy(rightPrefix, bits[:i])
-	// 		rightPrefix[i] = 0x1
-	// 		right, _, _, err = n.HashAtPrefix(rightPrefix)
-	// 		if err != nil {
-	// 			return nil, nil, nil, err
-	// 		}
-	// 		if right == nil {
-	// 			right = common.NilHashSlice
-	// 		}
-	// 		proof.Append(common.BytesToHash(right), false)
-	// 	} else {
-	// 		leftPrefix := make([]byte, i+1)
-	// 		copy(leftPrefix, bits[:i])
-	// 		leftPrefix[i] = 0x0
-	// 		var lln, lrn bool
-	// 		left, lln, lrn, err = n.HashAtPrefix(leftPrefix)
-	// 		if err != nil {
-	// 			return nil, nil, nil, err
-	// 		}
-	// 		if left == nil || lln || lrn {
-	// 			return nil, nil, nil, ErrMissingValue
-	// 		}
-	// 		proof.Append(common.BytesToHash(left), true)
-	// 	}
-	// 	rootHash = common.HashPair(left, right)
-	// }
-	// return
 }
 
 func (n *TreeNode) MakeFullString(recursive bool) string {
