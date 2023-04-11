@@ -49,10 +49,11 @@ func (b *cachedBatch) Size() int {
 }
 
 type cachedDB struct {
-	path   string
-	baseDB Database
-	cache  *lru.Cache
-	lock   sync.RWMutex
+	path      string
+	cacheSize int
+	baseDB    Database
+	cache     *lru.Cache
+	lock      sync.RWMutex
 
 	writecount uint64 // counter for writing
 	hitcount   uint64 // counter for hitting the cache when reading
@@ -72,9 +73,10 @@ func NewCachedDBWithPath(path string, cacheSize int) (Database, error) {
 		return nil, e
 	}
 	return &cachedDB{
-		path:   path,
-		baseDB: db,
-		cache:  c,
+		path:      path,
+		cacheSize: cacheSize,
+		baseDB:    db,
+		cache:     c,
 	}, nil
 }
 
@@ -162,6 +164,12 @@ func (d *cachedDB) Replace(newpath string, newdb Database) (oldpath string, oldd
 	olddb = d.baseDB
 	d.path = newpath
 	d.baseDB = newdb
+	newcache, err := lru.New(d.cacheSize)
+	if err != nil || newcache == nil {
+		d.cache.Purge()
+	} else {
+		d.cache = newcache
+	}
 	d.writecount = 0
 	d.hitcount = 0
 	d.misscount = 0
