@@ -292,7 +292,16 @@ type Infoer interface {
 	InfoString(level IndentLevel) string
 }
 
-func InfoStringer(v reflect.Value, level IndentLevel) string {
+type IndentLevel int
+
+func (l IndentLevel) IndentString() string {
+	if l <= 0 {
+		return ""
+	}
+	return strings.Repeat("\t", int(l))
+}
+
+func (l IndentLevel) _valueInfo(v reflect.Value) string {
 	if !v.IsValid() {
 		return "N/A"
 	}
@@ -303,38 +312,12 @@ func InfoStringer(v reflect.Value, level IndentLevel) string {
 	case string:
 		return obj
 	case Infoer:
-		return obj.InfoString(level)
+		return obj.InfoString(l)
 	case fmt.Stringer:
 		return fmt.Sprintf("%s", obj.String())
 	default:
 		return "UKN"
 	}
-}
-
-func BytesInfoString(level IndentLevel, bss [][]byte) string {
-	base := level.IndentString()
-	nextIndent := (level + 1).IndentString()
-	buf := new(bytes.Buffer)
-	buf.WriteByte('[')
-	if len(bss) > 0 {
-		for i := 0; i < len(bss); i++ {
-			one := bss[i]
-			buf.WriteString(fmt.Sprintf("\n%s%x,", nextIndent, one))
-		}
-		buf.WriteByte('\n')
-		buf.WriteString(base)
-	}
-	buf.WriteByte(']')
-	return buf.String()
-}
-
-type IndentLevel int
-
-func (l IndentLevel) IndentString() string {
-	if l <= 0 {
-		return ""
-	}
-	return strings.Repeat("\t", int(l))
 }
 
 func (l IndentLevel) InfoString(o interface{}) string {
@@ -359,7 +342,7 @@ func (l IndentLevel) InfoString(o interface{}) string {
 		if v.Len() > 0 {
 			for i := 0; i < v.Len(); i++ {
 				one := v.Index(i)
-				buf.WriteString(fmt.Sprintf("\n%s%s,", nextIndent, InfoStringer(one, next)))
+				buf.WriteString(fmt.Sprintf("\n%s%s,", nextIndent, next._valueInfo(one)))
 			}
 			buf.WriteByte('\n')
 			buf.WriteString(indent)
@@ -367,7 +350,7 @@ func (l IndentLevel) InfoString(o interface{}) string {
 		buf.WriteByte(']')
 		return buf.String()
 	default:
-		return InfoStringer(v, l)
+		return l._valueInfo(v)
 	}
 }
 
