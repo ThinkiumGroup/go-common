@@ -780,3 +780,15 @@ func _examChop(tree *HistoryTree, rootMap, valMap map[uint64][]byte, key uint64)
 	}
 	return nil
 }
+
+func TestGetFromNilTree(t *testing.T) {
+	dbase := db.NewMemDB()
+	tree, err := NewHistoryTree(dbase, []byte("al"), nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, exist := tree.Get(1001)
+	if exist {
+		t.Fatal("no value should in a nil history tree")
+	}
+}
