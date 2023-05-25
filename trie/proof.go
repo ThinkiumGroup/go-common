@@ -192,15 +192,15 @@ func (p ProofType) String() string {
 	return "NA"
 }
 
-// 1. To prove the existence of ValueHash on leaf nodes, such as the existence of TX and SPV. Or:
-// 2. To prove the non-existence of a key according to the provided Header, and you need to match
-//    the key from top to bottom.
-// 3. When PType is ProofHeaderXXXXXXXX, to proof the corresponding field in BlockHeader:
-//    In this case, ValueHash is the special prefix of different fields, and the hash value of the
-//    field sequence number can be used to prove that this field is being proved, and ChildProofs
-//    is the proof to BlockHeader.Hash
-// 4. When PType is ProofHdsSummary, ValueHash is Hash(4bytes(ChainID)+8bytes(Height)), and empty
-//    Header, nil ChildProofs
+//  1. To prove the existence of ValueHash on leaf nodes, such as the existence of TX and SPV. Or:
+//  2. To prove the non-existence of a key according to the provided Header, and you need to match
+//     the key from top to bottom.
+//  3. When PType is ProofHeaderXXXXXXXX, to proof the corresponding field in BlockHeader:
+//     In this case, ValueHash is the special prefix of different fields, and the hash value of the
+//     field sequence number can be used to prove that this field is being proved, and ChildProofs
+//     is the proof to BlockHeader.Hash
+//  4. When PType is ProofHdsSummary, ValueHash is Hash(4bytes(ChainID)+8bytes(Height)), and empty
+//     Header, nil ChildProofs
 type NodeProof struct {
 	PType       ProofType            `json:"type"`   // Limit the content that this node can prove, which is used to judge in proving step.
 	Header      NodeHeader           `json:"header"` // Description of the current node, including: whether there is prefix, what is prefix, which child node has data, and whether there is value
@@ -410,16 +410,14 @@ func (n *NodeProof) Iterate(hashCallback func(val []byte, order bool) error) err
 // current proofing node
 // If PType.IsProofChild(): Hash(Hash(Hash(Header), ValueHash), ChildProofs.Proof(toBeProof))
 // If PType.IsProofValue():
-//   if ChildProofs.Len() > 1 : error
-//   if ChildProofs.Len() == 1 : Hash(Hash(Hash(Header), toBeProof), ChildProofs.Hashs[0])
-//   if ChildProofs.Len() == 0 : Hash(Hash(Header), toBeProof)
+//
+//	if ChildProofs.Len() > 1 : error
+//	if ChildProofs.Len() == 1 : Hash(Hash(Hash(Header), toBeProof), ChildProofs.Hashs[0])
+//	if ChildProofs.Len() == 0 : Hash(Hash(Header), toBeProof)
+//
 // If PType.IsProofMerkleOnly(): ChildProofs.Proof(toBeProof)
-// If PType.IsProofHeaderProperty(): ChildProofs.Proof(Hash(ValueHash, toBeProof)), in this case,
-//                                   ValueHash is the hash value of the sequence number of the
-//                                   corresponding field
-// If PType.IsProofHdsSummary(): ChildProofs.Proof(Hash(ValueHash, toBeProof)), in this case,
-//                               ValueHash is the hash of the chain+Height corresponding to the
-//                               summary
+// If PType.IsProofHeaderProperty(): ChildProofs.Proof(Hash(ValueHash, toBeProof)), in this case, ValueHash is the hash value of the sequence number of the corresponding field.
+// If PType.IsProofHdsSummary(): ChildProofs.Proof(Hash(ValueHash, toBeProof)), in this case, ValueHash is the hash of the chain+Height corresponding to the summary.
 func (n *NodeProof) Proof(toBeProof common.Hash) ([]byte, error) {
 	if n == nil {
 		return nil, common.ErrNil
@@ -438,17 +436,16 @@ func (n *NodeProof) Proof(toBeProof common.Hash) ([]byte, error) {
 
 // Compare the nibbles in keyprefix with the prefix of the current node and the index of the
 // child array to determine whether the value pointed to by the keyprefix is in the current
-// node or its descendant node
-// matched: true means that the target is in the current node or its desendant node
-// valueHash: When matched = = true and exactly matches the current node, hash of value is
-//            returned. Otherwise, return nil
-// suffix: Return the remaining part of keyprefix after matching, which is used to continue
-//         calling this method on the child node
-// err: If the data is incomplete or incorrect, err will return a non nil value, and other
-//      return values are invalid
-//      In this case，matched==true&&valueHash!=nil，means the target value is found,
-//                   matched==true&&valueHash==nil，means the current node is matched and the
-//                                                  next level needs to be matched
+// node or its descendant node.
+//
+// matched: true means that the target is in the current node or its desendant node.
+// valueHash: When matched is true and exactly matches the current node, hash of value is returned. Otherwise, return nil.
+// suffix: Return the remaining part of keyprefix after matching, which is used to continue calling this method on the child node.
+// err: If the data is incomplete or incorrect, err will return a non nil value, and except for matched, other return values are invalid.
+//
+// When err is nil:
+// matched==true&&valueHash!=nil，means the target value is found,
+// matched==true&&valueHash==nil，means the current node is matched and the next level needs to be matched.
 func (n *NodeProof) ExistenceMatch(keyprefix []byte) (matched bool, valueHash *common.Hash, suffix []byte, err error) {
 	if n == nil {
 		return false, nil, nil, common.ErrNil
