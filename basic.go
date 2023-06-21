@@ -91,36 +91,36 @@ type (
 )
 
 // ETManagedCommittee:
-// 1. The consensus nodes in this chain will not participate in the election of other chains
-//    until the nodes quit from the consensus of this chain
-// 2. This type of chain no longer reports reward request, that is, there is no reward
-// 3. The start time of the election in this chain is the same as that in VRF, but the election
-//    request is broadcast directly on the basic network of main chain without packaging in a
-//    block
-// 4. Nodes that can participate in the election on thi chain will be stored under the key
-//    (models.AddressOfChainSettings, models.ManagedCommNodeIdsName) in this chain in the form
-//    of nodeid list. The byte slice value formed by the end to end connection of multiple
-//    values. By modifying this value, we can control the list of candidates who can run in
-//    the next election.
-// 5. When receiving the election request, all nodes will judge whether their nodeid is in the
-//    candidate list. If it is, they can join the basic network and the next consensus network
-//    of the chain, wait for the synchronization information, and then send the election results
-//    (Registration). The process here is same with VRF election, but the registration
-//    message type is different
-// 6. There's no lower limit for committee.size, and same upper limit with VRF election. The
-//    committee is composed of registered and legal candidates, sorted by nodeid from small to
-//    large, packaged and broadcast to the network. The process here is same with VRF election,
-//    but the election algorithm is different.
-// 1. 在此链中共识的节点不再参与其他链的选举，直到节点退出此链的共识
-// 2. 此类型链不再上报奖励请求，即无奖励
-// 3. 此链的选举开始时间与VRF一致，但选举请求不经过打包直接在0链基础网络上广播
-// 4. 可以参与选举的节点，会以NodeID列表的方式存储在本链models.AddressOfChainSettings的
-//    models.ManagedCommNodeIdsName为名的键值中，多个值首尾相接形成的byte slice值。通过修改这
-//    个值，来控制下次可以参选的候选人名单。
-// 5. 所有节点收到选举请求时，会判断自身NodeID是否在候选人名单中，如果在，就可以加入该链基础网络和下
-//    届共识网络等待同步信息后再发送选举结果（报名）,此处流程与VRF选举一致，不过报名消息类型不同
-// 6. 选举不再控制committee.size的下限，上限与VRF选举一致，Committee由报名的且合法的候选人，按
-//    NodeID由小到大排序组成，并打包广播到本链网络中，除选举算法与VRF不同，流程完全一致
+//  1. The consensus nodes in this chain will not participate in the election of other chains
+//     until the nodes quit from the consensus of this chain
+//  2. This type of chain no longer reports reward request, that is, there is no reward
+//  3. The start time of the election in this chain is the same as that in VRF, but the election
+//     request is broadcast directly on the basic network of main chain without packaging in a
+//     block
+//  4. Nodes that can participate in the election on thi chain will be stored under the key
+//     (models.AddressOfChainSettings, models.ManagedCommNodeIdsName) in this chain in the form
+//     of nodeid list. The byte slice value formed by the end to end connection of multiple
+//     values. By modifying this value, we can control the list of candidates who can run in
+//     the next election.
+//  5. When receiving the election request, all nodes will judge whether their nodeid is in the
+//     candidate list. If it is, they can join the basic network and the next consensus network
+//     of the chain, wait for the synchronization information, and then send the election results
+//     (Registration). The process here is same with VRF election, but the registration
+//     message type is different
+//  6. There's no lower limit for committee.size, and same upper limit with VRF election. The
+//     committee is composed of registered and legal candidates, sorted by nodeid from small to
+//     large, packaged and broadcast to the network. The process here is same with VRF election,
+//     but the election algorithm is different.
+//  1. 在此链中共识的节点不再参与其他链的选举，直到节点退出此链的共识
+//  2. 此类型链不再上报奖励请求，即无奖励
+//  3. 此链的选举开始时间与VRF一致，但选举请求不经过打包直接在0链基础网络上广播
+//  4. 可以参与选举的节点，会以NodeID列表的方式存储在本链models.AddressOfChainSettings的
+//     models.ManagedCommNodeIdsName为名的键值中，多个值首尾相接形成的byte slice值。通过修改这
+//     个值，来控制下次可以参选的候选人名单。
+//  5. 所有节点收到选举请求时，会判断自身NodeID是否在候选人名单中，如果在，就可以加入该链基础网络和下
+//     届共识网络等待同步信息后再发送选举结果（报名）,此处流程与VRF选举一致，不过报名消息类型不同
+//  6. 选举不再控制committee.size的下限，上限与VRF选举一致，Committee由报名的且合法的候选人，按
+//     NodeID由小到大排序组成，并打包广播到本链网络中，除选举算法与VRF不同，流程完全一致
 const (
 	ETNone             ElectionType = 0
 	ETVrf              ElectionType = 1
@@ -1167,6 +1167,26 @@ func (a *Address) Clone() *Address {
 	return &b
 }
 
+func (a *Address) ForRLP() *Address {
+	if a == nil {
+		o := EmptyAddress
+		return &o
+	}
+	o := *a
+	return &o
+}
+
+func (a *Address) FromRLP() *Address {
+	if a == nil {
+		return nil
+	}
+	if *a == EmptyAddress {
+		return nil
+	}
+	o := *a
+	return &o
+}
+
 func (a Address) Copy() *Address {
 	b := a
 	return &b
@@ -1353,6 +1373,25 @@ func (h *Hash) Clone() *Hash {
 		return nil
 	}
 	return NewHash(h[:])
+}
+
+func (h *Hash) ForRLP() *Hash {
+	if h == nil {
+		o := EmptyHash
+		return &o
+	}
+	return NewHash(h[:])
+}
+
+func (h *Hash) FromRLP() *Hash {
+	if h == nil {
+		return nil
+	}
+	if *h == EmptyHash {
+		return nil
+	}
+	o := *h
+	return &o
 }
 
 // Bytes gets the byte representation of the underlying hash.

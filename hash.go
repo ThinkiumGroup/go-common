@@ -251,7 +251,7 @@ func (it *moreTimesIterator) next() (MoreTime, bool) {
 
 // Since 16 bit counting is used in serialization, the maximum supported proof height cannot exceed 65535
 type MerkleProofs struct {
-	// Use ToBeProof to alculate the Hash list of Hash with index starting from 0 in order
+	// Use ToBeProof to calculate the Hash list of Hash with index starting from 0 in order
 	Hashs []Hash `json:"hashs"`
 	// Bit operands. The bit corresponding to the index of hashs indicates that the corresponding
 	// hash value is placed left (1) or right (0) during hash operation, and the order is exactly
