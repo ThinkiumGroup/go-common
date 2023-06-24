@@ -25,7 +25,7 @@ const (
 	DefaultStarterPK = "0450d64512b100d1bf9d726a2b9708c2d406778439d2feee42728c1f6d898deb4eb051d85950ad27a16628f66b78e997bdfd78fd80325c206a653bd901f7d1a31a"
 
 	BlocksInEpoch = 1000 // number of blocks in Epoch
-	EpochsInEra   = 1
+	EpochsInEra   = 36
 	BlocksInEra   = EpochsInEra * BlocksInEpoch
 
 	// chain id related
