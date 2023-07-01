@@ -1235,7 +1235,8 @@ func (a Address) Hash() Hash { return BytesToHash(a[:]) }
 func (a Address) Hex() string {
 	unchecksummed := hex.EncodeToString(a[:])
 	// sha := GetHash256()
-	hasher := RealCipher.Hasher()
+	// hasher := RealCipher.Hasher()
+	hasher := SystemHashProvider.Hasher()
 	hasher.Write([]byte(unchecksummed))
 	hash := hasher.Sum(nil)
 

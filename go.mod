@@ -3,7 +3,6 @@ module github.com/ThinkiumGroup/go-common
 go 1.14
 
 require (
-	github.com/ThinkiumGroup/go-cipher v1.0.206
 	github.com/davecgh/go-spew v1.1.1
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/holiman/uint256 v1.2.2

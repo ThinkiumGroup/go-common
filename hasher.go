@@ -35,7 +35,7 @@ func HashObject(o interface{}) ([]byte, error) {
 	case Hasher:
 		return val.HashValue()
 	default:
-		hasher := RealCipher.Hasher()
+		hasher := SystemHashProvider.Hasher()
 		if err := rtl.Encode(val, hasher); err != nil {
 			return nil, err
 		}
@@ -53,7 +53,7 @@ func EncodeAndHash(o interface{}) ([]byte, error) {
 		return NilHashSlice, nil
 	}
 
-	hasher := RealCipher.Hasher()
+	hasher := SystemHashProvider.Hasher()
 	if err := rtl.Encode(o, hasher); err != nil {
 		return nil, err
 	}

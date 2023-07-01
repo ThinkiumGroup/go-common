@@ -965,7 +965,7 @@ func (d Dataserver) String() string {
 
 func (d *Dataserver) HashValue() ([]byte, error) {
 	// hasher := GetHash256()
-	hasher := RealCipher.Hasher()
+	hasher := SystemHashProvider.Hasher()
 	if _, err := d.hashSerialize(hasher); err != nil {
 		return nil, err
 	}
@@ -973,8 +973,9 @@ func (d *Dataserver) HashValue() ([]byte, error) {
 }
 
 // TODO: Serialization needs to increase the seperator between properties, otherwise there will
-//  be the same serialization of different data, but because the modification will cause data
-//  incompatibility, it needs to be modified during the overall data migration
+//
+//	be the same serialization of different data, but because the modification will cause data
+//	incompatibility, it needs to be modified during the overall data migration
 func (d *Dataserver) hashSerialize(w io.Writer) (int, error) {
 	str := []string{
 		strconv.Itoa(int(d.ChainID)),

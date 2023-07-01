@@ -18,15 +18,16 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"hash"
 	"io"
 	"math/big"
 	"reflect"
 	"sort"
 
-	"github.com/ThinkiumGroup/go-cipher"
 	"github.com/ThinkiumGroup/go-common/math"
 	"github.com/stephenfire/go-rtl"
 	"golang.org/x/crypto/ripemd160"
+	"golang.org/x/crypto/sha3"
 )
 
 // Interface type that can calculate hash values
@@ -724,11 +725,23 @@ func Hash256NoError(in ...[]byte) []byte {
 }
 
 func SystemHash256(in ...[]byte) []byte {
-	return CipherHash256(RealCipher, in...)
+	return CipherHash256(SystemHashProvider, in...)
 }
 
-func CipherHash256(cipher cipher.Cipher, in ...[]byte) []byte {
-	hasher := cipher.Hasher()
+type HashProvider interface {
+	Hasher() hash.Hash
+}
+
+type systemHasher struct{}
+
+func (s systemHasher) Hasher() hash.Hash {
+	return sha3.NewLegacyKeccak256()
+}
+
+var SystemHashProvider HashProvider = systemHasher{}
+
+func CipherHash256(pro HashProvider, in ...[]byte) []byte {
+	hasher := pro.Hasher()
 	for _, b := range in {
 		hasher.Write(b)
 	}
