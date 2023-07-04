@@ -763,6 +763,13 @@ func (e EraNum) Bytes() []byte {
 	return ret
 }
 
+func (e *EraNum) Slice() []byte {
+	if e == nil {
+		return nil
+	}
+	return (*e).Bytes()
+}
+
 func (en *EpochNum) Clone() *EpochNum {
 	if en == nil {
 		return nil
@@ -943,6 +950,13 @@ func (h Height) Bytes() []byte {
 	ret := make([]byte, HeightBytesLength)
 	binary.BigEndian.PutUint64(ret, uint64(h))
 	return ret
+}
+
+func (h *Height) Slice() []byte {
+	if h == nil {
+		return nil
+	}
+	return (*h).Bytes()
 }
 
 func (h Height) EraNum() EraNum {
@@ -1631,6 +1645,13 @@ func (s *Seed) Generate() error {
 }
 
 func (s *Seed) Byte() []byte {
+	return s[:]
+}
+
+func (s *Seed) Slice() []byte {
+	if s == nil {
+		return nil
+	}
 	return s[:]
 }
 
