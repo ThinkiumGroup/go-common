@@ -43,7 +43,7 @@ func InitCheckLog(path string, nid []byte) {
 func CCDebug(msgs ...interface{}) {
 	ccLogLock.RLock()
 	defer ccLogLock.RUnlock()
-	ccLog.Debug(msgs)
+	ccLog.Debug(msgs...)
 }
 
 func CCDebugf(format string, values ...interface{}) {
@@ -55,7 +55,7 @@ func CCDebugf(format string, values ...interface{}) {
 func CCInfo(msgs ...interface{}) {
 	ccLogLock.RLock()
 	defer ccLogLock.RUnlock()
-	ccLog.Info(msgs)
+	ccLog.Info(msgs...)
 }
 
 func CCInfof(format string, values ...interface{}) {
@@ -67,7 +67,7 @@ func CCInfof(format string, values ...interface{}) {
 func CCWarn(msgs ...interface{}) {
 	ccLogLock.RLock()
 	defer ccLogLock.RUnlock()
-	ccLog.Warn(msgs)
+	ccLog.Warn(msgs...)
 }
 
 func CCWarnf(format string, values ...interface{}) {
@@ -79,7 +79,7 @@ func CCWarnf(format string, values ...interface{}) {
 func CCError(msgs ...interface{}) {
 	ccLogLock.RLock()
 	defer ccLogLock.RUnlock()
-	ccLog.Error(msgs)
+	ccLog.Error(msgs...)
 }
 
 func CCErrorf(format string, values ...interface{}) {

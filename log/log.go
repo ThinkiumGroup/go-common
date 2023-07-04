@@ -80,7 +80,7 @@ func Logger() *logrus.Logger {
 }
 
 func Debug(msgs ...interface{}) {
-	rootLog.Debug(msgs)
+	rootLog.Debug(msgs...)
 }
 
 func Debugf(format string, values ...interface{}) {
@@ -88,7 +88,7 @@ func Debugf(format string, values ...interface{}) {
 }
 
 func Info(msgs ...interface{}) {
-	rootLog.Info(msgs)
+	rootLog.Info(msgs...)
 }
 
 func Infof(format string, values ...interface{}) {
@@ -96,7 +96,7 @@ func Infof(format string, values ...interface{}) {
 }
 
 func Warn(msgs ...interface{}) {
-	rootLog.Warn(msgs)
+	rootLog.Warn(msgs...)
 }
 
 func Warnf(format string, values ...interface{}) {
@@ -104,7 +104,7 @@ func Warnf(format string, values ...interface{}) {
 }
 
 func Error(msgs ...interface{}) {
-	rootLog.Error(msgs)
+	rootLog.Error(msgs...)
 }
 
 func Errorf(format string, values ...interface{}) {
