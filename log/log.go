@@ -35,9 +35,9 @@ func (w *EmptyWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func InitLog(path string, nid []byte) {
+func InitLogWithSuffix(path string, suffix string) {
 	writer, err := rotatelogs.New(
-		path+"."+fmt.Sprintf("%x", nid[:5])+".%Y%m%d",
+		path+"."+suffix+".%Y%m%d",
 		rotatelogs.WithMaxAge(time.Duration(86400*30)*time.Second),
 		rotatelogs.WithRotationTime(time.Duration(86400)*time.Second),
 	)
@@ -59,6 +59,18 @@ func InitLog(path string, nid []byte) {
 	}
 	rootLog.AddHook(NewFileAndConsoleHook(formatter, writer, os.Stdout,
 		logrus.InfoLevel, logrus.WarnLevel, logrus.ErrorLevel))
+}
+
+func InitLog(path string, nid []byte) {
+	var suffix string
+	if len(nid) == 0 {
+		suffix = "_"
+	} else if len(nid) > 5 {
+		suffix = fmt.Sprintf("%x", nid[:5])
+	} else {
+		suffix = fmt.Sprintf("%x", nid)
+	}
+	InitLogWithSuffix(path, suffix)
 }
 
 func init() {
