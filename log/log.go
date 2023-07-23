@@ -17,6 +17,7 @@ package log
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/lestrrat-go/file-rotatelogs"
@@ -26,7 +27,9 @@ import (
 const MaxTxsInLog = 50 // up to 50 transaction information can be displayed in the log
 
 var (
-	rootLog *logrus.Logger
+	rootLog    *logrus.Logger
+	wrapped    logrus.FieldLogger
+	_logLocker sync.RWMutex
 )
 
 type EmptyWriter struct{}
@@ -36,6 +39,8 @@ func (w *EmptyWriter) Write(p []byte) (n int, err error) {
 }
 
 func InitLogWithSuffix(path string, suffix string) {
+	_logLocker.Lock()
+	defer _logLocker.Unlock()
 	writer, err := rotatelogs.New(
 		path+"."+suffix+".%Y%m%d",
 		rotatelogs.WithMaxAge(time.Duration(86400*30)*time.Second),
@@ -59,6 +64,7 @@ func InitLogWithSuffix(path string, suffix string) {
 	}
 	rootLog.AddHook(NewFileAndConsoleHook(formatter, writer, os.Stdout,
 		logrus.InfoLevel, logrus.WarnLevel, logrus.ErrorLevel))
+	wrapped = rootLog
 }
 
 func InitLog(path string, nid []byte) {
@@ -85,42 +91,67 @@ func init() {
 		Hooks:     make(logrus.LevelHooks),
 		Level:     logrus.DebugLevel,
 	}
+	wrapped = rootLog
 }
 
-func Logger() *logrus.Logger {
-	return rootLog
-}
+// func Logger() *logrus.Logger {
+// 	return rootLog
+// }
 
 func Debug(msgs ...interface{}) {
-	rootLog.Debug(msgs...)
+	_logLocker.RLock()
+	defer _logLocker.RUnlock()
+
+	wrapped.Debug(msgs...)
 }
 
 func Debugf(format string, values ...interface{}) {
-	rootLog.Debugf(format, values...)
+	_logLocker.RLock()
+	defer _logLocker.RUnlock()
+
+	wrapped.Debugf(format, values...)
 }
 
 func Info(msgs ...interface{}) {
-	rootLog.Info(msgs...)
+	_logLocker.RLock()
+	defer _logLocker.RUnlock()
+
+	wrapped.Info(msgs...)
 }
 
 func Infof(format string, values ...interface{}) {
-	rootLog.Infof(format, values...)
+	_logLocker.RLock()
+	defer _logLocker.RUnlock()
+
+	wrapped.Infof(format, values...)
 }
 
 func Warn(msgs ...interface{}) {
-	rootLog.Warn(msgs...)
+	_logLocker.RLock()
+	defer _logLocker.RUnlock()
+
+	wrapped.Warn(msgs...)
 }
 
 func Warnf(format string, values ...interface{}) {
-	rootLog.Warnf(format, values...)
+	_logLocker.RLock()
+	defer _logLocker.RUnlock()
+
+	wrapped.Warnf(format, values...)
 }
 
 func Error(msgs ...interface{}) {
-	rootLog.Error(msgs...)
+	_logLocker.RLock()
+	defer _logLocker.RUnlock()
+
+	wrapped.Error(msgs...)
 }
 
 func Errorf(format string, values ...interface{}) {
-	rootLog.Errorf(format, values...)
+	_logLocker.RLock()
+	defer _logLocker.RUnlock()
+
+	wrapped.Errorf(format, values...)
 }
 
 func MustDebugf(logger logrus.FieldLogger, format string, args ...interface{}) {
@@ -173,4 +204,12 @@ func WithField(vs ...interface{}) logrus.FieldLogger {
 		fields[k] = vs[i+1]
 	}
 	return rootLog.WithFields(fields)
+}
+
+func SetFields(fields logrus.Fields) {
+	_logLocker.Lock()
+	defer _logLocker.Unlock()
+
+	logger := wrapped.WithFields(fields)
+	wrapped = logger
 }
