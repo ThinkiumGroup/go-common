@@ -198,16 +198,16 @@ func TestToHeight(t *testing.T) {
 		H Height
 	}{
 		{0, 999, 999},
-		{0, 2222, NilHeight},
-		{1, 999, 1999},
-		{2, 1000, NilHeight},
-		{3, 0, 3000},
+		{0, BlocksInEpoch + 1222, NilHeight},
+		{1, 999, BlocksInEpoch + 999},
+		{2, BlocksInEpoch, NilHeight},
+		{3, 0, 3 * BlocksInEpoch},
 		{NilEpoch, 999, NilHeight},
 		{3, NilBlock, NilHeight},
-		{NilEpoch, 1001, NilHeight},
+		{NilEpoch, BlocksInEpoch + 1, NilHeight},
 		{NilEpoch - 1, 0, NilHeight},
 		{EpochNum(NilHeight / BlocksInEpoch), 0, (NilHeight / BlocksInEpoch) * BlocksInEpoch},
-		{EpochNum(NilHeight / BlocksInEpoch), 999, NilHeight},
+		{EpochNum(NilHeight / BlocksInEpoch), BlocksInEpoch - 1, NilHeight},
 	}
 
 	for _, data := range datas {
