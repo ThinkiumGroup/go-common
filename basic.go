@@ -260,9 +260,10 @@ func (m *LastBlockMap) CopyMap() map[ChainID]Height {
 	return r
 }
 
+// should proposed blocks number in one epoch
 func (i CommID) ShouldPropose(commSize int) int {
-	quotient := BlocksInEpoch / commSize
-	remaider := BlocksInEpoch % commSize
+	quotient := int(BlocksInEpoch) / commSize
+	remaider := int(BlocksInEpoch) % commSize
 	if remaider > int(i) {
 		quotient++
 	}
@@ -544,7 +545,7 @@ func (ns NodeIDs) Union(os NodeIDs) NodeIDs {
 		return nil
 	}
 	r := make(NodeIDs, 0, len(m))
-	for k, _ := range m {
+	for k := range m {
 		r = append(r, k)
 	}
 	return r
@@ -886,7 +887,7 @@ func (bn BlockNum) IsNil() bool {
 }
 
 func (bn BlockNum) IsValid() bool {
-	return bn < BlocksInEpoch
+	return uint64(bn) < BlocksInEpoch
 }
 
 func (bn BlockNum) IsFirstOfEpoch() bool {
@@ -895,7 +896,7 @@ func (bn BlockNum) IsFirstOfEpoch() bool {
 
 // Is it the last block in an epoch
 func (bn BlockNum) IsLastOfEpoch() bool {
-	return bn.IsValid() && (bn+1) == BlocksInEpoch
+	return bn.IsValid() && (uint64(bn)+1) == BlocksInEpoch
 }
 
 func (bn BlockNum) String() string {
@@ -963,54 +964,54 @@ func (h Height) EraNum() EraNum {
 	if h.IsNil() {
 		return NilEra
 	}
-	return EraNum(h) / BlocksInEra
+	return EraNum(h) / EraNum(BlocksInEpoch*EpochsInEra)
 }
 
 func (h Height) EpochNum() EpochNum {
 	if h.IsNil() {
 		return NilEpoch
 	}
-	return EpochNum(h) / BlocksInEpoch
+	return EpochNum(h) / EpochNum(BlocksInEpoch)
 }
 
 func (h Height) UsefulEpoch() EpochNum {
 	if h.IsNil() {
 		return 0
 	}
-	return EpochNum(h) / BlocksInEpoch
+	return EpochNum(h) / EpochNum(BlocksInEpoch)
 }
 
 func (h Height) BlockNum() BlockNum {
 	if h.IsNil() {
 		return NilBlock
 	}
-	return BlockNum(h % BlocksInEpoch)
+	return BlockNum(uint64(h) % BlocksInEpoch)
 }
 
 func (h Height) UsefulBlock() BlockNum {
 	if h.IsNil() {
 		return 0
 	}
-	return BlockNum(h % BlocksInEpoch)
+	return BlockNum(uint64(h) % BlocksInEpoch)
 }
 
 func (h Height) IsFirstOfEpoch() bool {
-	return !h.IsNil() && (h%BlocksInEpoch) == 0
+	return !h.IsNil() && (uint64(h)%BlocksInEpoch) == 0
 }
 
 // Is it the last block in an epoch
 func (h Height) IsLastOfEpoch() bool {
 	// It is necessary to consider the special case that height is likely to be the maximum value
 	// of Uint64 in the genesis block
-	return !h.IsNil() && ((h+1)%BlocksInEpoch) == 0
+	return !h.IsNil() && ((uint64(h)+1)%BlocksInEpoch) == 0
 }
 
 func (h Height) Split() (epochNum EpochNum, blockNum BlockNum) {
 	if h.IsNil() {
 		return NilEpoch, NilBlock
 	}
-	epochNum = EpochNum(h) / BlocksInEpoch
-	blockNum = BlockNum(h % BlocksInEpoch)
+	epochNum = EpochNum(h) / EpochNum(BlocksInEpoch)
+	blockNum = BlockNum(uint64(h) % BlocksInEpoch)
 	return
 }
 

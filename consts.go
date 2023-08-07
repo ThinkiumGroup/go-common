@@ -14,6 +14,17 @@
 
 package common
 
+var (
+	DefaultStarterPK = "0450d64512b100d1bf9d726a2b9708c2d406778439d2feee42728c1f6d898deb4eb051d85950ad27a16628f66b78e997bdfd78fd80325c206a653bd901f7d1a31a"
+
+	BlocksInEpoch uint64 = 1000
+	EpochsInEra   uint64 = 36
+
+	// base chainid for ethereum compatible
+	BigChainIDBaseV2 uint64 = 100007
+	BigChainIDBase   uint64 = 70000
+)
+
 const (
 	// default configuration
 	DefaultP2PPort1      = 31000
@@ -22,20 +33,10 @@ const (
 	DefaultEthRpcAddress = "127.0.0.1:32007"
 	DefaultCompatible    = true
 
-	DefaultStarterPK = "0450d64512b100d1bf9d726a2b9708c2d406778439d2feee42728c1f6d898deb4eb051d85950ad27a16628f66b78e997bdfd78fd80325c206a653bd901f7d1a31a"
-
-	BlocksInEpoch = 12000 // number of blocks in Epoch
-	EpochsInEra   = 3
-	BlocksInEra   = EpochsInEra * BlocksInEpoch
-
 	// chain id related
 	ReservedMaxChainID uint32 = 1 << 20
 	MainChainID               = ChainID(0)
 	NilChainID                = ChainID(ReservedMaxChainID)
-
-	// base chainid for ethereum compatible
-	BigChainIDBaseV2 = 100007
-	BigChainIDBase   = 70000
 
 	// length of types
 	NodeIDBits        = 512
@@ -48,9 +49,6 @@ const (
 
 	// upper limit of shards：<= 2^MaxExponentOfShards
 	MaxExponentOfShards = 8
-
-	INTMAX int = int(^uint(0) >> 1)
-	INTMIN int = ^INTMAX
 )
 
 const (

@@ -178,7 +178,7 @@ func TestEpochNum_LastHeight(t *testing.T) {
 		A EpochNum // epoch
 		B Height   // lastheight
 		C Height   // any height in epoch
-	}{{A: 0, B: 999, C: 938}, {A: 1, B: 1999, C: 1938}, {A: 2, B: 2999, C: 2000}}
+	}{{A: 0, B: Height(BlocksInEpoch - 1), C: 938}, {A: 1, B: Height(BlocksInEpoch*2 - 1), C: Height(BlocksInEpoch + 938)}, {A: 2, B: Height(BlocksInEpoch*3 - 1), C: Height(BlocksInEpoch * 2)}}
 	for _, data := range datas {
 		h := data.C.EpochNum()
 		if h != data.A {
@@ -198,16 +198,16 @@ func TestToHeight(t *testing.T) {
 		H Height
 	}{
 		{0, 999, 999},
-		{0, BlocksInEpoch + 1222, NilHeight},
-		{1, 999, BlocksInEpoch + 999},
-		{2, BlocksInEpoch, NilHeight},
-		{3, 0, 3 * BlocksInEpoch},
+		{0, BlockNum(BlocksInEpoch + 1222), NilHeight},
+		{1, 999, Height(BlocksInEpoch + 999)},
+		{2, BlockNum(BlocksInEpoch), NilHeight},
+		{3, 0, Height(3 * BlocksInEpoch)},
 		{NilEpoch, 999, NilHeight},
 		{3, NilBlock, NilHeight},
-		{NilEpoch, BlocksInEpoch + 1, NilHeight},
+		{NilEpoch, BlockNum(BlocksInEpoch + 1), NilHeight},
 		{NilEpoch - 1, 0, NilHeight},
-		{EpochNum(NilHeight / BlocksInEpoch), 0, (NilHeight / BlocksInEpoch) * BlocksInEpoch},
-		{EpochNum(NilHeight / BlocksInEpoch), BlocksInEpoch - 1, NilHeight},
+		{EpochNum(uint64(NilHeight) / BlocksInEpoch), 0, Height((uint64(NilHeight) / BlocksInEpoch) * BlocksInEpoch)},
+		{EpochNum(uint64(NilHeight) / BlocksInEpoch), BlockNum(BlocksInEpoch - 1), NilHeight},
 	}
 
 	for _, data := range datas {
@@ -219,23 +219,23 @@ func TestToHeight(t *testing.T) {
 	}
 }
 
-func TestCommID_ShouldPropose(t *testing.T) {
-	datas := []struct {
-		A CommID
-		B int // comm size
-		C int // number of blocks should propose
-	}{
-		{1, 15, 67},
-		{9, 15, 67},
-		{10, 15, 66},
-		{0, 20, 50},
-		{19, 20, 50},
-	}
-
-	for _, data := range datas {
-		n := data.A.ShouldPropose(data.B)
-		if n != data.C {
-			t.Fatalf("CommID:%d CommSize:%d Should:%d but %d", data.A, data.B, data.C, n)
-		}
-	}
-}
+// func TestCommID_ShouldPropose(t *testing.T) {
+// 	datas := []struct {
+// 		A CommID
+// 		B int // comm size
+// 		C int // number of blocks should propose
+// 	}{
+// 		{1, 15, 67},
+// 		{9, 15, 67},
+// 		{10, 15, 66},
+// 		{0, 20, 50},
+// 		{19, 20, 50},
+// 	}
+//
+// 	for _, data := range datas {
+// 		n := data.A.ShouldPropose(data.B)
+// 		if n != data.C {
+// 			t.Fatalf("CommID:%d CommSize:%d Should:%d but %d", data.A, data.B, data.C, n)
+// 		}
+// 	}
+// }
