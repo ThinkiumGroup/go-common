@@ -1,8 +1,10 @@
 package abi
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 
 	"github.com/ThinkiumGroup/go-common"
@@ -105,4 +107,25 @@ func (abi ABI) UnpackEvent(v interface{}, topics []common.Hash, data []byte) err
 	}
 	ret = append(ret, values...)
 	return args.CopyEvent(v, ret)
+}
+
+func MustInitAbiBytes(name string, abiBytes []byte) *ABI {
+	a, err := JSON(bytes.NewReader(abiBytes))
+	if err != nil {
+		panic(fmt.Errorf("init %s abi failed: %w", name, err))
+	}
+	return &a
+}
+
+func MustInitAbi(name, abiString string) *ABI {
+	return MustInitAbiBytes(name, []byte(abiString))
+}
+
+func MustInitAbiFile(name, filePath string) *ABI {
+	bs, err := os.ReadFile(filePath)
+	if err != nil {
+		panic(fmt.Errorf("read file %s for initilizing abi %s failed: %w", filePath, name, err))
+	}
+	a := MustInitAbiBytes(name, bs)
+	return a
 }
