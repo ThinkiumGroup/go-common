@@ -383,3 +383,10 @@ func SubBytes(bs []byte, from, size int) ([]byte, error) {
 	}
 	return rs, nil
 }
+
+func DecodeHex(h string) ([]byte, error) {
+	if HasHexPrefix(h) {
+		return hex.DecodeString(h[2:])
+	}
+	return hex.DecodeString(h)
+}
