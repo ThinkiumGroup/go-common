@@ -10,6 +10,12 @@ import (
 	"github.com/ThinkiumGroup/go-common"
 )
 
+var (
+	ErrMethodNotFound = errors.New("method not found")
+	ErrInputNotMatch  = errors.New("input not match with method")
+	ErrInputTooShort  = errors.New("input too short for method")
+)
+
 func (arguments Arguments) CopyEvent(v interface{}, values []interface{}) error {
 	// make sure the passed value is arguments pointer
 	if reflect.Ptr != reflect.ValueOf(v).Kind() {
@@ -107,6 +113,20 @@ func (abi ABI) UnpackEvent(v interface{}, topics []common.Hash, data []byte) err
 	}
 	ret = append(ret, values...)
 	return args.CopyEvent(v, ret)
+}
+
+func (abi ABI) UnpackInputObject(v interface{}, name string, input []byte) error {
+	if len(input) < 4 {
+		return ErrInputTooShort
+	}
+	method, ok := abi.Methods[name]
+	if !ok {
+		return ErrMethodNotFound
+	}
+	if !bytes.Equal(method.ID, input[:4]) {
+		return ErrInputNotMatch
+	}
+	return method.Inputs.UnpackIntoInterface(v, input[4:])
 }
 
 func MustInitAbiBytes(name string, abiBytes []byte) *ABI {
