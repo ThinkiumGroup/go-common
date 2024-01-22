@@ -25,7 +25,6 @@ type WorkerFunc func(workerName string, event interface{})
 type pooledWorker struct {
 	pool     *RoutinePool
 	name     string
-	wg       *sync.WaitGroup
 	quit     chan struct{}    // quit channel
 	higher   chan interface{} // High priority event queue
 	lower    chan interface{} // Low priority event queue
@@ -49,11 +48,10 @@ func (w *pooledWorker) event(v interface{}) {
 }
 
 func (w *pooledWorker) work() {
-	defer w.wg.Done()
+	defer w.pool.wg.Done()
 	for {
 		select {
 		case <-w.quit:
-			// fmt.Println(w.name, "quiting")
 			return
 		case v := <-w.higher:
 			// Process high priority event first
@@ -91,6 +89,7 @@ type RoutinePool struct {
 	keyGetter func(interface{}) string
 	lock      sync.Mutex
 	started   bool
+	quit      chan struct{}
 	wg        sync.WaitGroup
 }
 
@@ -102,14 +101,14 @@ func NewRoutinePool(name string, routineSize int, queueSize int, workFunc Worker
 		higher:    make(chan interface{}, queueSize),
 		lower:     make(chan interface{}, queueSize),
 		started:   false,
+		quit:      make(chan struct{}),
 		wg:        sync.WaitGroup{},
 	}
 	for i := 0; i < routineSize; i++ {
 		ret.workers[i] = &pooledWorker{
 			pool:     ret,
 			name:     ret.name + "-" + strconv.Itoa(i+1),
-			wg:       &ret.wg,
-			quit:     make(chan struct{}, 1),
+			quit:     ret.quit,
 			higher:   ret.higher,
 			lower:    ret.lower,
 			workFunc: workFunc,
@@ -145,9 +144,7 @@ func (p *RoutinePool) Stop() {
 	if !p.started {
 		return
 	}
-	for i := 0; i < len(p.workers); i++ {
-		go func(j int) { p.workers[j].quit <- struct{}{} }(i)
-	}
+	close(p.quit)
 	p.started = false
 	p.wg.Wait()
 }
