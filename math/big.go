@@ -240,10 +240,10 @@ func U256Bytes(n *big.Int) []byte {
 // S256 interprets x as a two's complement number.
 // x must not exceed 256 bits (the result is undefined if it does) and is not modified.
 //
-//   S256(0)        = 0
-//   S256(1)        = 1
-//   S256(2**255)   = -2**255
-//   S256(2**256-1) = -1
+//	S256(0)        = 0
+//	S256(1)        = 1
+//	S256(2**255)   = -2**255
+//	S256(2**256-1) = -1
 func S256(x *big.Int) *big.Int {
 	if x.Cmp(tt255) < 0 {
 		return x
@@ -551,7 +551,7 @@ func (b *BigInt) SubInt(a *big.Int) *BigInt {
 	return (*BigInt)(c)
 }
 
-// if b<=0, always return (b, nil)
+// SubIntNotLessZero if b<=0, always return (b, nil)
 // subtranhend cannot less than zero
 func (b *BigInt) SubIntNotLessZero(subtrahend *big.Int) (left *BigInt, actualSubtrahend *BigInt) {
 	if subtrahend == nil || subtrahend.Sign() <= 0 {
@@ -618,11 +618,21 @@ func (b *BigInt) MulRat(r *big.Rat) *BigInt {
 	return b.MulInt(num).DivInt(denom)
 }
 
+func (b *BigInt) IsZero() bool {
+	return b == nil || b.Sign() == 0
+}
+
 func (b *BigInt) Compare(o *BigInt) int {
+	if b.IsZero() && o.IsZero() {
+		return 0
+	}
 	return CompareBigInt((*big.Int)(b), (*big.Int)(o))
 }
 
 func (b *BigInt) CompareInt(i *big.Int) int {
+	if b.IsZero() && (*BigInt)(i).IsZero() {
+		return 0
+	}
 	return CompareBigInt((*big.Int)(b), i)
 }
 
